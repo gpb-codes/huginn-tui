@@ -1,0 +1,44 @@
+# Binaries
+/huginn
+/huginn.exe
+huginn-*.exe
+huginn-tui.exe
+*.exe
+!install.ps1
+!cmd/huginn/
+
+# Go
+vendor/
+*.test
+*.out
+__debug_bin*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Env / secrets
+.env
+.env.*
+*.key
+*.pem
+
+# Vault / local data
+huginn.json
+huginn.config.json
+.agent-vault/
+.huginn/
+
+# Temp
+tmp/
+temp/
+*.tmp
+*.log
