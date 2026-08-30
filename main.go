@@ -2047,7 +2047,7 @@ func viewHelp(m model) string {
 
 func viewAgents(m model) string {
 	var rows []string
-	title := lipgloss.NewStyle().Bold(true).Foreground(colAccent).Render("CONNECTED AGENTS")
+	title := lipgloss.NewStyle().Bold(true).Foreground(colAccent).Render("AGENTS  —  Connected")
 	rows = append(rows, title, "")
 	for _, a := range backendAgents {
 		online := commandAvailable(a.Command)
@@ -2274,7 +2274,7 @@ func viewSettings(m model) string {
 }
 
 func viewServers(m model) string {
-	title := lipgloss.NewStyle().Bold(true).Foreground(colAccent).Render("SERVERS")
+	title := lipgloss.NewStyle().Bold(true).Foreground(colAccent).Render("SERVERS  —  MCP · LSP · Peers")
 	sub := lipgloss.NewStyle().Foreground(colMuted).Render(fmt.Sprintf("MCP · LSP · Peers  •  local %s (%s)", localHostname, localPeerID))
 	header := lipgloss.JoinVertical(lipgloss.Left, title, sub, "")
 
@@ -2573,6 +2573,7 @@ func viewGraph(m model) string {
 		lipgloss.NewStyle().Foreground(colMuted2).Render("    │    ") +
 		lipgloss.NewStyle().Foreground(colAccent).Render("vault: ~/agent-vault")
 	statsLine := lipgloss.NewStyle().Width(76).Align(lipgloss.Center).Render(stats)
+	legend := lipgloss.NewStyle().Foreground(colMuted).Render("● agent  ◉ memory  ○ project  ─ connection") + lipgloss.NewStyle().Foreground(colMuted2).Render("  •  ↑↓←→ navega")
 	hints := lipgloss.NewStyle().Foreground(colMuted).Render(
 		lipgloss.NewStyle().Bold(true).Foreground(colText).Render("esc") + " volver  " +
 			lipgloss.NewStyle().Bold(true).Foreground(colText).Render("↑↓←→") + " navegar  " +
@@ -2585,7 +2586,7 @@ func viewGraph(m model) string {
 		BorderForeground(colBorder).
 		Padding(0, 1).
 		Width(76).
-		Render(lipgloss.JoinVertical(lipgloss.Left, header, "", graphBox, detailBox, statsLine))
+		Render(lipgloss.JoinVertical(lipgloss.Left, header, "", graphBox, detailBox, legend, statsLine))
 	return lipgloss.JoinVertical(lipgloss.Right, panel, hints)
 }
 
@@ -2593,82 +2594,92 @@ func viewVaultWizard(m model) string {
 	q := vaultWizardQuestions[m.vaultWizardStep]
 	progress := fmt.Sprintf("Paso %d/%d", m.vaultWizardStep+1, len(vaultWizardQuestions))
 	title := lipgloss.NewStyle().Bold(true).Foreground(colAccent).Render("VAULT  —  Configuración")
-	sub := lipgloss.NewStyle().Foreground(colMuted).Render(progress + "  •  /vault  •  " + q.Title)
+	sub := lipgloss.NewStyle().Foreground(colMuted).Render(progress + "  •  /vault  •  " + q.Title + "  •  " + m.vaultWizardData.Name)
 	header := lipgloss.JoinVertical(lipgloss.Left, title, sub, "")
-	// progress bar
 	filled := (m.vaultWizardStep + 1) * 20 / len(vaultWizardQuestions)
 	bar := strings.Repeat("█", filled) + strings.Repeat("░", 20-filled)
 	barLine := lipgloss.NewStyle().Foreground(colAccent).Render(bar) + lipgloss.NewStyle().Foreground(colMuted).Render(fmt.Sprintf(" %d%%", (m.vaultWizardStep+1)*100/len(vaultWizardQuestions)))
-	// pregunta
 	question := lipgloss.NewStyle().Bold(true).Foreground(colWhite).Render(q.Prompt)
-	// input / opciones
 	var body string
 	if len(q.Options) > 0 {
 		var opts []string
 		for i, opt := range q.Options {
-			style := lipgloss.NewStyle().Foreground(colText2).Padding(0, 1)
+			style := lipgloss.NewStyle().Foreground(colText2).Padding(0, 1).Width(28)
 			if i == m.vaultWizardCursor {
-				style = lipgloss.NewStyle().Foreground(colPanel).Background(colAccent).Bold(true).Padding(0, 1)
+				style = lipgloss.NewStyle().Foreground(colPanel).Background(colAccent).Bold(true).Padding(0, 1).Width(28)
 			}
-			// marca actual
 			check := "  "
 			if opt == m.vaultWizardInput {
 				check = "▶ "
 			}
-			opts = append(opts, style.Render(check+opt))
+			desc := ""
+			if q.Key == "Purpose" {
+				if opt == "personal" { desc = "  privado" }
+				if opt == "equipo" { desc = "  compartido" }
+				if opt == "proyecto" { desc = "  por repo" }
+			}
+			if q.Key == "VaultType" {
+				if opt == "knowledge" { desc = "  docs" }
+				if opt == "memory" { desc = "  prefs" }
+				if opt == "mixed" { desc = "  ambos" }
+			}
+			opts = append(opts, style.Render(check+opt+lipgloss.NewStyle().Foreground(colMuted).Render(desc)))
 		}
 		body = strings.Join(opts, "\n")
 	} else {
-		// campo de texto
-		cursor := "_"
-		if len(m.vaultWizardInput) > 0 {
-			cursor = ""
-		}
-		input := m.vaultWizardInput + lipgloss.NewStyle().Background(colWhite).Foreground(lipgloss.Color("#0a0c0f")).Render(cursor)
+		cursor := "█"
+		input := m.vaultWizardInput
 		if input == "" {
 			input = lipgloss.NewStyle().Foreground(colMuted).Italic(true).Render(q.Default)
+		} else {
+			input = lipgloss.NewStyle().Foreground(colWhite).Render(input) + lipgloss.NewStyle().Background(colAccent).Foreground(colPanel).Render(cursor)
 		}
-		box := lipgloss.NewStyle().Background(colPanel2).BorderStyle(lipgloss.NormalBorder()).BorderForeground(colBorder).Padding(0, 1).Width(56).Render(input)
-		body = box + "\n" + lipgloss.NewStyle().Foreground(colMuted).Italic(true).Render("Escribe y presiona Enter • Esc para volver")
+		box := lipgloss.NewStyle().Background(colPanel2).BorderStyle(lipgloss.RoundedBorder()).BorderForeground(colAccent).Padding(0, 1).Width(52).Render(input)
+		body = box + "\n" + lipgloss.NewStyle().Foreground(colMuted).Italic(true).Render("Escribe • Enter confirma • Esc atrás")
 	}
-	// resumen de lo ya configurado
 	var summary []string
 	for i := 0; i < m.vaultWizardStep; i++ {
 		qq := vaultWizardQuestions[i]
 		var val string
 		switch qq.Key {
-		case "Path":
-			val = m.vaultWizardData.Path
-		case "Name":
-			val = m.vaultWizardData.Name
-		case "Purpose":
-			val = m.vaultWizardData.Purpose
-		case "VaultType":
-			val = m.vaultWizardData.VaultType
-		case "Sync":
-			val = m.vaultWizardData.Sync
-		case "Indexing":
-			val = m.vaultWizardData.Indexing
-		case "Embeddings":
-			val = m.vaultWizardData.Embeddings
+		case "Path": val = m.vaultWizardData.Path
+		case "Name": val = m.vaultWizardData.Name
+		case "Purpose": val = m.vaultWizardData.Purpose
+		case "VaultType": val = m.vaultWizardData.VaultType
+		case "Sync": val = m.vaultWizardData.Sync
+		case "Indexing": val = m.vaultWizardData.Indexing
+		case "Embeddings": val = m.vaultWizardData.Embeddings
 		}
-		summary = append(summary, lipgloss.NewStyle().Foreground(colSuccess).Render("✓ ")+lipgloss.NewStyle().Foreground(colMuted).Render(qq.Title+": ")+lipgloss.NewStyle().Foreground(colText2).Render(val))
+		icon := lipgloss.NewStyle().Foreground(colSuccess).Render("✓ ")
+		summary = append(summary, icon+lipgloss.NewStyle().Foreground(colMuted).Render(qq.Title+": ")+lipgloss.NewStyle().Foreground(colWhite).Render(val))
 	}
 	summaryBox := ""
 	if len(summary) > 0 {
-		summaryBox = lipgloss.NewStyle().Background(colPanel2).BorderStyle(lipgloss.NormalBorder()).BorderForeground(colBorder).Padding(0, 1).Width(56).Render(strings.Join(summary, "\n"))
+		summaryBox = lipgloss.NewStyle().Background(colPanel2).BorderStyle(lipgloss.NormalBorder()).BorderForeground(colBorder).Padding(0, 1).Width(52).Render(strings.Join(summary, "\n"))
 	}
-	// panel principal
-	content := lipgloss.JoinVertical(lipgloss.Left, question, "", body)
+	// preview vault structure (derecha)
+	previewTitle := lipgloss.NewStyle().Bold(true).Foreground(colWhite).Render("Preview  ") + lipgloss.NewStyle().Foreground(colMuted).Render(m.vaultWizardData.Path)
+	previewTree := []string{
+		lipgloss.NewStyle().Foreground(colAccent).Render(m.vaultWizardData.Name+"/"),
+		lipgloss.NewStyle().Foreground(colMuted).Render("├── ") + lipgloss.NewStyle().Foreground(colSuccess).Render("memory/"),
+		lipgloss.NewStyle().Foreground(colMuted).Render("│   ├── ") + lipgloss.NewStyle().Foreground(colMuted2).Render("preferences.md"),
+		lipgloss.NewStyle().Foreground(colMuted).Render("│   └── ") + lipgloss.NewStyle().Foreground(colMuted2).Render("index.jsonl"),
+		lipgloss.NewStyle().Foreground(colMuted).Render("├── ") + lipgloss.NewStyle().Foreground(colPurple).Render("agents/"),
+		lipgloss.NewStyle().Foreground(colMuted).Render("├── ") + lipgloss.NewStyle().Foreground(colWarn).Render("knowledge/"),
+		lipgloss.NewStyle().Foreground(colMuted).Render("└── ") + lipgloss.NewStyle().Foreground(colMuted2).Render("config.json"),
+	}
+	previewBox := lipgloss.NewStyle().Background(colPanel2).BorderStyle(lipgloss.NormalBorder()).BorderForeground(colBorder).Padding(0, 1).Width(28).Height(9).Render(previewTitle + "\n" + strings.Join(previewTree, "\n"))
+	leftContent := lipgloss.JoinVertical(lipgloss.Left, question, "", body)
 	if summaryBox != "" {
-		content = lipgloss.JoinVertical(lipgloss.Left, content, "", summaryBox)
+		leftContent = lipgloss.JoinVertical(lipgloss.Left, leftContent, "", summaryBox)
 	}
-	panel := lipgloss.NewStyle().Background(colPanel).BorderStyle(lipgloss.NormalBorder()).BorderForeground(colBorder2).Padding(1, 2).Width(76).Render(lipgloss.JoinVertical(lipgloss.Left, header, barLine, "", content))
+	mainRow := lipgloss.JoinHorizontal(lipgloss.Top, lipgloss.NewStyle().Width(42).Render(leftContent), "  ", previewBox)
+	panel := lipgloss.NewStyle().Background(colPanel).BorderStyle(lipgloss.NormalBorder()).BorderForeground(colBorder2).Padding(1, 2).Width(76).Render(lipgloss.JoinVertical(lipgloss.Left, header, barLine, "", mainRow))
 	hints := lipgloss.NewStyle().Foreground(colMuted).Render(
-		lipgloss.NewStyle().Bold(true).Foreground(colText).Render("enter") + " confirmar  " +
-			lipgloss.NewStyle().Bold(true).Foreground(colText).Render("↑↓") + " opciones  " +
-			lipgloss.NewStyle().Bold(true).Foreground(colText).Render("esc") + " atrás/salir  " +
-			lipgloss.NewStyle().Bold(true).Foreground(colText).Render("o") + " abrir explorer",
+		lipgloss.NewStyle().Bold(true).Foreground(colText).Render("enter")+" confirmar  "+
+			lipgloss.NewStyle().Bold(true).Foreground(colText).Render("↑↓")+" elegir  "+
+			lipgloss.NewStyle().Bold(true).Foreground(colText).Render("esc")+" atrás  "+
+			lipgloss.NewStyle().Bold(true).Foreground(colText).Render("o")+" abrir",
 	)
 	return lipgloss.JoinVertical(lipgloss.Right, panel, hints)
 }
@@ -2805,7 +2816,7 @@ func viewChat(m model) string {
 		}
 		leftLines = append(leftLines, "")
 	}
-	dispatchTitle := lipgloss.NewStyle().Bold(true).Foreground(colWhite).Render(" AGENT DISPATCH")
+	dispatchTitle := lipgloss.NewStyle().Bold(true).Foreground(colAccent).Render("◆ AGENT DISPATCH")
 	dispatchRows := []string{
 		"",
 		dispatchTitle,
@@ -2846,7 +2857,7 @@ func viewChat(m model) string {
 		leftLines = append(leftLines, line)
 	}
 	leftLines = append(leftLines, "")
-	leftLines = append(leftLines, lipgloss.NewStyle().Bold(true).Foreground(colWhite).Render("  BACKGROUND TASKS"))
+	leftLines = append(leftLines, lipgloss.NewStyle().Bold(true).Foreground(colAccent).Render("▣ BACKGROUND TASKS"))
 	leftLines = append(leftLines, lipgloss.NewStyle().Foreground(colBorder).Render("  "+strings.Repeat("─", 45)))
 	bgTasks := []string{
 		lipgloss.NewStyle().Foreground(colSuccess).Render("  [✓]") + lipgloss.NewStyle().Foreground(colText2).Render(" Research authentication patterns") + lipgloss.NewStyle().Foreground(colMuted).Render("             2m 14s"),
