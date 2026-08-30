@@ -14,6 +14,11 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+
+	"huginn/internal/cli"
+	"huginn/internal/domain/project"
+	vaultpkg "huginn/internal/domain/vault"
+	tuicomp "huginn/internal/tui/components"
 )
 
 const VERSION = "v0.2.0"
@@ -1865,61 +1870,15 @@ func (m model) View() tea.View {
 		return tea.NewView("")
 	}
 
-	hugRows := []string{
-		"██  ██  ██  ██   █████",
-		"██  ██  ██  ██  ██    ",
-		"██████  ██  ██  ██ ███",
-		"██  ██  ██  ██  ██  ██",
-		"██  ██   ████    █████",
-	}
-	innRows := []string{
-		"████  ██  ██  ██  ██",
-		" ██   ███ ██  ███ ██",
-		" ██   ██ ███  ██ ███",
-		" ██   ██  ██  ██  ██",
-		"████  ██  ██  ██  ██",
-	}
-	var bigRows []string
-	for i := range hugRows {
-		h := lipgloss.NewStyle().Bold(true).Foreground(colPurple).Render(hugRows[i])
-		n := lipgloss.NewStyle().Bold(true).Foreground(colWhite).Render(innRows[i])
-		gap := lipgloss.NewStyle().Foreground(colBorder).Render("   ")
-		bigRows = append(bigRows, h+gap+n)
-	}
-	bigHuginn := strings.Join(bigRows, "\n")
-
-	var wordmark string
-	ravensTop := lipgloss.NewStyle().Foreground(colRaven).Width(76).Align(lipgloss.Center).Render(" 𓅃         𓅃 ")
-	bigBlock := lipgloss.NewStyle().Padding(1, 0).Width(76).Align(lipgloss.Center).Render(bigHuginn)
-	wordmark = lipgloss.JoinVertical(lipgloss.Center, ravensTop, bigBlock)
-
-	subtitleInner := lipgloss.NewStyle().Bold(true).Foreground(colMuted).Render("AI  AGENT  ORCHESTRATION")
-	subtitle := lipgloss.NewStyle().Padding(0, 1).Width(76).Align(lipgloss.Center).Render(subtitleInner)
-	ver := lipgloss.NewStyle().Foreground(colRaven).Width(76).Align(lipgloss.Center).Render(VERSION + "  •  INTELLIGENCE & KNOWLEDGE INFRASTRUCTURE  •  𓅃𓅃")
-	divider := lipgloss.NewStyle().Foreground(colBorder).Width(76).Align(lipgloss.Center).Render(strings.Repeat("─", 52))
-
-	header := lipgloss.JoinVertical(lipgloss.Center, "", wordmark, subtitle, ver, "", divider)
-	// CLI context: muestra Project/Context si viene de `huginn <path>` / `huginn "<prompt>"` — no duplica Vault, solo referencia
-	if m.projectPath != "" {
-		ctx := m.projectPath
-		if len(ctx) > 52 {
-			ctx = "…" + ctx[len(ctx)-51:]
-		}
-		ctxLine := fmt.Sprintf("Project └─ %s", ctx)
-		if m.pkgManager != "" {
-			ctxLine += lipgloss.NewStyle().Foreground(colMuted).Render("  • ") + lipgloss.NewStyle().Foreground(colSuccess).Render(m.pkgManager)
-		}
-		if m.vaultPath != "" {
-			vIcon := "○"
-			vCol := colMuted
-			if m.vaultOK {
-				vIcon = "●"
-				vCol = colSuccess
-			}
-			ctxLine += "  " + lipgloss.NewStyle().Foreground(vCol).Render(vIcon+" vault")
-		}
-		header = lipgloss.JoinVertical(lipgloss.Center, header, lipgloss.NewStyle().Foreground(colMuted).Width(76).Align(lipgloss.Center).Render(ctxLine), "")
-	}
+	header := tuicomp.RenderHeader(tuicomp.HeaderProps{
+		ProjectPath: m.projectPath,
+		ProjectName: m.projectName,
+		VaultPath:   m.vaultPath,
+		VaultOK:     m.vaultOK,
+		PkgManager:  m.pkgManager,
+		Version:     VERSION,
+		Width:       76,
+	})
 
 	// chat tiene layout propio de 86 cols (dashboard) — no usa header global
 	if m.mode == modeChat {
@@ -2883,7 +2842,9 @@ func viewChat(m model) string {
 	}
 	dispatchBoxContent := strings.Join(dispatchRows, "\n")
 	dispatchBox := lipgloss.NewStyle().BorderStyle(lipgloss.NormalBorder()).BorderForeground(colBorder).Padding(0, 1).Width(55).Render(dispatchBoxContent)
-	leftLines = append(leftLines, dispatchBox)
+	for _, line := range strings.Split(dispatchBox, "\n") {
+		leftLines = append(leftLines, line)
+	}
 	leftLines = append(leftLines, "")
 	leftLines = append(leftLines, lipgloss.NewStyle().Bold(true).Foreground(colWhite).Render("  BACKGROUND TASKS"))
 	leftLines = append(leftLines, lipgloss.NewStyle().Foreground(colBorder).Render("  "+strings.Repeat("─", 45)))
@@ -2894,8 +2855,12 @@ func viewChat(m model) string {
 	}
 	leftLines = append(leftLines, bgTasks...)
 	leftLines = append(leftLines, "")
-	leftLines = append(leftLines, lipgloss.NewStyle().Foreground(colBorder).Render("  "+strings.Repeat("─", 45)))
-	leftLines = append(leftLines, "  "+inputRow)
+	// Input mejorado — caja destacada con borde accent y hint
+	inputBoxContent := inputRow + "\n" + lipgloss.NewStyle().Foreground(colMuted).Render("  Build · Nemotron 3.5  •  Enter enviar")
+	inputBox := lipgloss.NewStyle().BorderStyle(lipgloss.NormalBorder()).BorderForeground(colAccent).Padding(0, 1).Width(55).Render(inputBoxContent)
+	for _, line := range strings.Split(inputBox, "\n") {
+		leftLines = append(leftLines, line)
+	}
 	rightLines := []string{
 		lipgloss.NewStyle().Bold(true).Foreground(colWhite).Render(" AGENTS"),
 		"",
@@ -2929,7 +2894,7 @@ func viewChat(m model) string {
 	rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colMuted).Render(" ├─ auth decisions"))
 	rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colMuted).Render(" ├─ agent history"))
 	rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colMuted).Render(" └─ project context"))
-	totalRows := 26
+	totalRows := 30
 	for len(leftLines) < totalRows {
 		leftLines = append(leftLines, "")
 	}
@@ -2937,7 +2902,8 @@ func viewChat(m model) string {
 		rightLines = append(rightLines, "")
 	}
 	if len(leftLines) > totalRows {
-		leftLines = leftLines[:totalRows]
+		// keep bottom (input sticky) when overflow
+		leftLines = leftLines[len(leftLines)-totalRows:]
 	}
 	if len(rightLines) > totalRows {
 		rightLines = rightLines[:totalRows]
@@ -2968,238 +2934,24 @@ func viewChat(m model) string {
 // ===================== CLI LAYER =====================
 const huginnBanner = "Huginn — Agent Vault Intelligence"
 
-type cliArgs struct {
-	Path       string
-	Prompt     string
-	Subcommand string
-	SubArgs    []string
-	Help       bool
-	Version    bool
-	Debug      bool
-}
+type cliArgs = cli.Args
 
-var futureSubcommands = map[string]bool{
-	"chat": true, "agent": true, "agents": true, "memory": true, "vault": true, "config": true, "graph": true,
-}
+var futureSubcommands = cli.FutureSubcommands
 
-func isDebug() bool {
-	if os.Getenv("HUGINN_DEBUG") == "1" || os.Getenv("HUGINN_DEBUG") == "true" {
-		return true
-	}
-	for _, a := range os.Args[1:] {
-		if a == "--debug" {
-			return true
-		}
-	}
-	return false
-}
+func isDebug() bool { return cli.IsDebug(os.Args[1:]) }
 
-func isDirectory(p string) bool {
-	if p == "" {
-		return false
-	}
-	p = strings.Trim(p, `"'`)
-	clean := filepath.Clean(p)
-	info, err := os.Stat(clean)
-	if err != nil {
-		return false
-	}
-	return info.IsDir()
-}
+func isDirectory(p string) bool                { return project.IsDirectory(p) }
+func detectPackageManager(root string) string  { return project.DetectPackageManager(root) }
+func detectProject(root string) (bool, string) { return project.DetectProject(root) }
+func resolveVaultPath() (string, bool)         { return vaultpkg.ResolveVaultPath() }
 
-func detectPackageManager(root string) string {
-	if _, err := os.Stat(filepath.Join(root, "bun.lockb")); err == nil {
-		return "bun"
-	}
-	if _, err := os.Stat(filepath.Join(root, "pnpm-lock.yaml")); err == nil {
-		return "pnpm"
-	}
-	if _, err := os.Stat(filepath.Join(root, "yarn.lock")); err == nil {
-		return "yarn"
-	}
-	if _, err := os.Stat(filepath.Join(root, "package-lock.json")); err == nil {
-		return "npm"
-	}
-	if _, err := os.Stat(filepath.Join(root, "package.json")); err == nil {
-		return "npm"
-	}
-	return ""
-}
+func parseArgs(raw []string) (cliArgs, error) { return cli.ParseArgs(raw) }
 
-func detectProject(root string) (bool, string) {
-	markers := []string{"go.mod", "package.json", "pyproject.toml", "Cargo.toml", "README.md", ".git", "AGENTS.md", "huginn.json", "huginn.config.json"}
-	for _, m := range markers {
-		if _, err := os.Stat(filepath.Join(root, m)); err == nil {
-			return true, m
-		}
-	}
-	return false, ""
-}
+func printHelp() { cli.PrintHelp() }
 
-func resolveVaultPath() (string, bool) {
-	if v := os.Getenv("HUGINN_VAULT"); v != "" {
-		if _, err := os.Stat(v); err == nil {
-			return v, true
-		}
-		return v, false
-	}
-	if v := os.Getenv("AGENT_VAULT"); v != "" {
-		if _, err := os.Stat(v); err == nil {
-			return v, true
-		}
-		return v, false
-	}
-	home, _ := os.UserHomeDir()
-	candidates := []string{
-		filepath.Join(home, "agent-vault"),
-		filepath.Join(home, "huginn-vault"),
-		filepath.Join(home, ".huginn", "vault"),
-	}
-	for _, c := range candidates {
-		if _, err := os.Stat(c); err == nil {
-			return c, true
-		}
-	}
-	if len(candidates) > 0 {
-		return candidates[0], false
-	}
-	return "", false
-}
+func printVersion() { cli.PrintVersion(VERSION) }
 
-func parseArgs(raw []string) (cliArgs, error) {
-	var out cliArgs
-	var positional []string
-	for _, a := range raw {
-		switch a {
-		case "--help", "-h", "-help", "help":
-			if len(positional) == 0 && len(raw) == 1 {
-				out.Help = true
-				return out, nil
-			}
-			out.Help = true
-		case "--version", "-v", "-version", "version":
-			if len(positional) == 0 && len(raw) == 1 {
-				out.Version = true
-				return out, nil
-			}
-			out.Version = true
-		case "--debug":
-			out.Debug = true
-		default:
-			if strings.HasPrefix(a, "--") {
-				return out, fmt.Errorf("flag desconocido: %s", a)
-			}
-			if strings.HasPrefix(a, "-") && len(a) > 1 {
-				return out, fmt.Errorf("flag desconocido: %s", a)
-			}
-			positional = append(positional, a)
-		}
-	}
-	if out.Help || out.Version {
-		return out, nil
-	}
-	if len(positional) > 0 && futureSubcommands[positional[0]] {
-		out.Subcommand = positional[0]
-		out.SubArgs = positional[1:]
-		return out, nil
-	}
-	if len(positional) == 0 {
-		out.Path = "."
-		return out, nil
-	}
-	if len(positional) == 1 {
-		p := positional[0]
-		if p == "." || p == "./" || isDirectory(p) {
-			out.Path = p
-		} else {
-			isAbs := filepath.IsAbs(p) || (len(p) >= 2 && p[1] == ':')
-			if isAbs || (strings.Contains(p, string(os.PathSeparator)) && isDirectory(p)) {
-				out.Path = p
-			} else {
-				out.Prompt = p
-				out.Path = "."
-			}
-		}
-		return out, nil
-	}
-	first := positional[0]
-	if first == "." || first == "./" || isDirectory(first) || filepath.IsAbs(first) || (len(first) >= 2 && first[1] == ':') {
-		if isDirectory(first) || filepath.IsAbs(first) || strings.Contains(first, string(os.PathSeparator)) {
-			out.Path = first
-			out.Prompt = strings.Join(positional[1:], " ")
-			return out, nil
-		}
-	}
-	out.Prompt = strings.Join(positional, " ")
-	out.Path = "."
-	return out, nil
-}
-
-func printHelp() {
-	useColor := os.Getenv("NO_COLOR") == "" && os.Getenv("TERM") != "dumb"
-	accent := ""
-	reset := ""
-	if useColor {
-		accent = "\x1b[36m"
-		reset = "\x1b[0m"
-	}
-	fmt.Printf(`
-  %sHuginn%s — Agent Vault Intelligence
-  CLI oficial de Huginn (interfaz de Agent Vault)
-
-%sUso:%s
-  huginn                      Abre Huginn en el directorio actual
-  huginn .                    Igual que arriba (explícito)
-  huginn <path>               Abre Huginn con <path> como contexto
-  huginn "<prompt>"           Envía prompt directo al orquestador
-  huginn <path> "<prompt>"    Combina contexto + prompt
-  huginn --help               Muestra esta ayuda
-  huginn --version            Muestra versión
-
-%sComandos futuros (arquitectura preparada):%s
-  huginn chat                 Chat interactivo (alias de huginn)
-  huginn agent                Seleccionar agente
-  huginn agents               Listar agentes
-  huginn memory               Consultar memoria
-  huginn vault                Explorar vault
-  huginn graph                Ver knowledge graph
-  huginn config               Gestionar configuración
-
-%sEjemplos:%s
-  huginn
-  huginn .
-  huginn ./mi-proyecto
-  huginn C:\Projects\mi-proyecto
-  huginn "analiza este proyecto"
-  huginn "crea un sistema de autenticación"
-  huginn ./mi-proyecto "analiza este proyecto"
-
-%sFlags:%s
-  -h, --help                  Ayuda
-  -v, --version               Versión
-  --debug                     Modo debug (stack traces)
-
-`, accent, reset, accent, reset, accent, reset, accent, reset, accent, reset)
-}
-
-func printVersion() {
-	fmt.Printf("huginn %s\n", VERSION)
-}
-
-func huginnError(msg string, debug bool, err error) {
-	fmt.Fprintf(os.Stderr, "\n  Huginn error: %s\n\n", msg)
-	if err != nil && debug {
-		fmt.Fprintf(os.Stderr, "  detalle: %v\n\n", err)
-	}
-	if strings.Contains(strings.ToLower(msg), "vault") {
-		fmt.Fprintln(os.Stderr, "Check:")
-		fmt.Fprintln(os.Stderr, "  • Agent Vault is running")
-		fmt.Fprintln(os.Stderr, "  • Your configuration is correct")
-		fmt.Fprintln(os.Stderr, "  • The configured endpoint is reachable")
-		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "Usa --debug para más detalle.")
-	}
-}
+func huginnError(msg string, debug bool, err error) { cli.HuginnError(msg, debug, err) }
 
 func runTUI(projectPath, prompt string) error {
 	abs, err := filepath.Abs(projectPath)

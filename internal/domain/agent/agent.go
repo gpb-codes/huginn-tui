@@ -1,18 +1,6 @@
 package agent
 
-import (
-	"image/color"
-	"os/exec"
-
-	"charm.land/lipgloss/v2"
-)
-
-// palette shared with TUI (domain should not depend on lipgloss, but kept here for convenience)
-var (
-	ColSuccess = lipgloss.Color("#2fd67a")
-	ColAccent  = lipgloss.Color("#33d9f2")
-	ColMuted   = lipgloss.Color("#5c6672")
-)
+import "os/exec"
 
 // Status represents agent execution state.
 type Status int
@@ -44,19 +32,6 @@ func (s Status) Label() string {
 		return "Running Tests"
 	default:
 		return "Queued"
-	}
-}
-
-func (s Status) Color() color.Color {
-	switch s {
-	case StatusDone:
-		return ColSuccess
-	case StatusWorking:
-		return ColAccent
-	case StatusTesting:
-		return lipgloss.Color("#e8a83e")
-	default:
-		return ColMuted
 	}
 }
 

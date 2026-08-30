@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -221,18 +222,15 @@ var (
 	ErrMemoryRejected = fmt.Errorf("memory rejected: potential secret")
 )
 
+var secretPattern = regexp.MustCompile(`(?i)(api[_-]?key|secret|password|token|private[_-]?key)\s*[:=]\s*\S{8,}`)
+var knownSecretTokens = regexp.MustCompile(`(sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|-----BEGIN (RSA )?PRIVATE KEY-----)`)
+
 func assertNoSecrets(content string) error {
-	lower := strings.ToLower(content)
-	secrets := []string{"api_key", "apikey", "password", "secret", "token", "private_key"}
-	for _, s := range secrets {
-		if strings.Contains(lower, s+"=") || strings.Contains(lower, s+":") {
-			// very basic check: if contains secret pattern and looks like long value, reject
-			// we check for = with 20+ chars value
-			// For now, only reject if contains "sk-" or "ghp_" etc.
-			if strings.Contains(lower, "sk-") || strings.Contains(lower, "ghp_") {
-				return ErrMemoryRejected
-			}
-		}
+	if secretPattern.MatchString(content) {
+		return ErrMemoryRejected
+	}
+	if knownSecretTokens.MatchString(content) {
+		return ErrMemoryRejected
 	}
 	return nil
 }
