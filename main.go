@@ -20,21 +20,21 @@ const VERSION = "v0.2.0"
 
 // ---------- palette ----------
 var (
-	colPanel  = lipgloss.Color("#111317")
-	colPanel2 = lipgloss.Color("#151A21")
-	colBorder = lipgloss.Color("#1c232e")
+	colPanel   = lipgloss.Color("#111317")
+	colPanel2  = lipgloss.Color("#151A21")
+	colBorder  = lipgloss.Color("#1c232e")
 	colBorder2 = lipgloss.Color("#253545")
-	colText   = lipgloss.Color("#e7ecf2")
-	colText2  = lipgloss.Color("#c9d1d9")
-	colMuted  = lipgloss.Color("#5c6672")
-	colMuted2 = lipgloss.Color("#8b949e")
-	colAccent = lipgloss.Color("#33d9f2")
-	colPurple = lipgloss.Color("#9061f9")
-	colWhite  = lipgloss.Color("#f4f6f8")
+	colText    = lipgloss.Color("#e7ecf2")
+	colText2   = lipgloss.Color("#c9d1d9")
+	colMuted   = lipgloss.Color("#5c6672")
+	colMuted2  = lipgloss.Color("#8b949e")
+	colAccent  = lipgloss.Color("#33d9f2")
+	colPurple  = lipgloss.Color("#9061f9")
+	colWhite   = lipgloss.Color("#f4f6f8")
 	colSuccess = lipgloss.Color("#2fd67a")
-	colRaven  = lipgloss.Color("#5f5f87")
-	colWarn   = lipgloss.Color("#e8a83e")
-	colError  = lipgloss.Color("#ff5555")
+	colRaven   = lipgloss.Color("#5f5f87")
+	colWarn    = lipgloss.Color("#e8a83e")
+	colError   = lipgloss.Color("#ff5555")
 )
 
 // ---------- agents ----------
@@ -271,7 +271,13 @@ var peerServers = []peerServer{
 }
 
 var localPeerID = "peer_LOCAL_7F3A"
-var localHostname = func() string { h, _ := os.Hostname(); if h == "" { return "huginn-local" }; return h }()
+var localHostname = func() string {
+	h, _ := os.Hostname()
+	if h == "" {
+		return "huginn-local"
+	}
+	return h
+}()
 
 // ---------- model ----------
 type mode int
@@ -287,30 +293,31 @@ const (
 	modeSettings
 	modeServers
 	modeGraph
+	modeVault
 )
 
 // chat con todos los agentes
 type chatMsg struct {
-	From    string
-	Text    string
-	IsUser  bool
-	Time    string
+	From   string
+	Text   string
+	IsUser bool
+	Time   string
 }
 
 var chatAgents = []string{"All", "ChatGPT", "OpenCode", "Mimo Code", "Kilo Code", "Muse Code"}
 
 // menciones nativas estilo opencode/kilo: @chatgpt @opencode @kilo @mimo @muse @all
 var mentionMap = map[string]string{
-	"@all":       "All",
-	"@chatgpt":   "ChatGPT",
-	"@opencode":  "OpenCode",
-	"@kilo":      "Kilo Code",
-	"@kilocode":  "Kilo Code",
-	"@mimo":      "Mimo Code",
-	"@mimo_code": "Mimo Code",
-	"@mimocode":  "Mimo Code",
-	"@muse":      "Muse Code",
-	"@claude":    "Muse Code",
+	"@all":         "All",
+	"@chatgpt":     "ChatGPT",
+	"@opencode":    "OpenCode",
+	"@kilo":        "Kilo Code",
+	"@kilocode":    "Kilo Code",
+	"@mimo":        "Mimo Code",
+	"@mimo_code":   "Mimo Code",
+	"@mimocode":    "Mimo Code",
+	"@muse":        "Muse Code",
+	"@claude":      "Muse Code",
 	"@claudecodes": "Muse Code",
 }
 
@@ -466,25 +473,25 @@ func applyMainAutocomplete(m *model) bool {
 }
 
 type model struct {
-	input      string
-	cursor     int
-	width      int
-	height     int
-	mode       mode
-	agents     []agent
-	logs       []string
-	quitting   bool
-	msgTitle   string
-	msgBody    string
-	chatTarget int
-	chatInput  string
-	chatCursor int
-	chatHistory []chatMsg
-	chatSuggests []string
-	chatSuggestIdx int
+	input            string
+	cursor           int
+	width            int
+	height           int
+	mode             mode
+	agents           []agent
+	logs             []string
+	quitting         bool
+	msgTitle         string
+	msgBody          string
+	chatTarget       int
+	chatInput        string
+	chatCursor       int
+	chatHistory      []chatMsg
+	chatSuggests     []string
+	chatSuggestIdx   int
 	chatInputHistory []string
-	chatHistIdx int
-	chatScroll int
+	chatHistIdx      int
+	chatScroll       int
 	// settings
 	settingsCursor   int
 	settingsExpanded []bool
@@ -500,6 +507,66 @@ type model struct {
 	vaultPath   string
 	vaultOK     bool
 	pkgManager  string
+	// graph
+	graphCursor int
+	// vault wizard
+	vaultWizardStep   int
+	vaultWizardInput  string
+	vaultWizardCursor int
+	vaultWizardData   vaultConfig
+}
+
+type vaultConfig struct {
+	Path       string
+	Name       string
+	Purpose    string // personal, equipo, proyecto
+	Sync       string // Auto, Manual, Off
+	Indexing   string // On, Off
+	Embeddings string // OpenAI, Local, Ollama, Disabled
+	VaultType  string // knowledge, memory, mixed
+}
+
+var vaultWizardQuestions = []struct {
+	Title   string
+	Key     string
+	Prompt  string
+	Options []string
+	Default string
+}{
+	{"Vault path", "Path", "¿Dónde guardar el vault?", nil, "~/agent-vault"},
+	{"Vault name", "Name", "Nombre del vault", nil, "agent-vault"},
+	{"Propósito", "Purpose", "¿Para qué usarás el vault?", []string{"personal", "equipo", "proyecto"}, "proyecto"},
+	{"Tipo de vault", "VaultType", "¿Qué guardará principalmente?", []string{"knowledge", "memory", "mixed"}, "mixed"},
+	{"Sync", "Sync", "¿Sincronización entre PCs?", []string{"Auto", "Manual", "Off"}, "Auto"},
+	{"Indexing", "Indexing", "¿Indexado automático de archivos?", []string{"On", "Off"}, "On"},
+	{"Embeddings", "Embeddings", "¿Proveedor de embeddings?", []string{"OpenAI", "Local", "Ollama", "Disabled"}, "Local"},
+}
+
+var graphNodes = []struct {
+	Label string
+	Type  string
+	Desc  string
+	Color color.Color
+}{
+	{"Agent", "agent", "Coordinador principal", lipgloss.Color("#9061f9")},
+	{"Memory", "memory", "Memoria persistente 4.2k tokens", lipgloss.Color("#33d9f2")},
+	{"Context", "context", "Contexto activo del proyecto", lipgloss.Color("#e8a83e")},
+	{"Project", "project", "huginn-tui • Go/Bubbletea", lipgloss.Color("#2fd67a")},
+	{"embeddings", "file", "src/memory/embeddings.db", lipgloss.Color("#8b949e")},
+	{"session", "file", "sessions/sess_01JABC.json", lipgloss.Color("#8b949e")},
+	{"Task", "task", "Implement auth with JWT", lipgloss.Color("#e8a83e")},
+	{"Knowledge", "knowledge", "Grafo 23 relaciones", lipgloss.Color("#4a8af4")},
+	{"recent.json", "file", "Memoria reciente", lipgloss.Color("#8b949e")},
+	{"graph.json", "file", "Grafo serializado", lipgloss.Color("#4a8af4")},
+	{"Huginn", "agent", "Orquestador local", lipgloss.Color("#9061f9")},
+	{"vault", "vault", "~/agent-vault • Synced", lipgloss.Color("#2fd67a")},
+	{"index.ts", "file", "src/knowledge/index.ts", lipgloss.Color("#33d9f2")},
+	{"config.yaml", "config", "Vault config", lipgloss.Color("#8b949e")},
+	{"context.md", "context", "Contexto markdown", lipgloss.Color("#e8a83e")},
+	{"reviewer", "agent", "Code review", lipgloss.Color("#e8a83e")},
+	{"architect", "agent", "System design", lipgloss.Color("#9061f9")},
+	{"developer", "agent", "Implementation", lipgloss.Color("#2fd67a")},
+	{"researcher", "agent", "Research", lipgloss.Color("#4a8af4")},
 }
 
 func initialModel() model {
@@ -592,15 +659,27 @@ func handleCommand(raw string, m model) (model, tea.Cmd, bool) {
 		return m, nil, false
 	}
 	if cmd == "/vault" || cmd == "vault" {
-		err := openVault()
-		if err != nil {
-			m.mode = modeMessage
-			m.msgTitle = "Vault"
-			m.msgBody = fmt.Sprintf("Failed to open vault: %v", err)
-		} else {
-			m.mode = modeMessage
-			m.msgTitle = "Vault"
-			m.msgBody = "Vault opened in file explorer."
+		// wizard interactivo — no abre directo, pregunta paso a paso
+		m.mode = modeVault
+		m.vaultWizardStep = 0
+		m.vaultWizardCursor = 0
+		m.vaultWizardData = vaultConfig{
+			Path:       "~/agent-vault",
+			Name:       "agent-vault",
+			Purpose:    "proyecto",
+			VaultType:  "mixed",
+			Sync:       "Auto",
+			Indexing:   "On",
+			Embeddings: "Local",
+		}
+		// si ya hay vault detectado, precarga
+		if m.vaultPath != "" {
+			m.vaultWizardData.Path = m.vaultPath
+			m.vaultWizardData.Name = filepath.Base(m.vaultPath)
+		}
+		m.vaultWizardInput = vaultWizardQuestions[0].Default
+		if m.vaultWizardData.Path != "" {
+			m.vaultWizardInput = m.vaultWizardData.Path
 		}
 		m.input = ""
 		m.cursor = 0
@@ -727,14 +806,23 @@ type agentReplyMsg struct {
 
 func callAgentCmd(agent, prompt string) tea.Cmd {
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-		defer cancel()
+		// fallback inmediato si opencode no está instalado — usa mock local (ChatGPT siempre mock)
+		if agent == "ChatGPT" {
+			time.Sleep(500 * time.Millisecond)
+			return agentReplyMsg{Agent: agent, Text: mockReply(agent, prompt)}
+		}
 		opencodeBin := "opencode"
 		if runtime.GOOS == "windows" {
 			if _, err := exec.LookPath("opencode.cmd"); err == nil {
 				opencodeBin = "opencode.cmd"
 			}
 		}
+		if !commandAvailable(opencodeBin) && !commandAvailable("opencode") && !commandAvailable("opencode.cmd") {
+			time.Sleep(400 * time.Millisecond)
+			return agentReplyMsg{Agent: agent, Text: mockReply(agent, prompt)}
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+		defer cancel()
 		var model string
 		switch agent {
 		case "ChatGPT":
@@ -1314,7 +1402,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					lspServers[m.serversCursor].Status = "Running"
 					m.serversMsg = fmt.Sprintf("↻ Reiniciando LSP %s …", lspServers[m.serversCursor].ServerName)
 				case 2:
-					peerServers[m.serversCursor].Latency = fmt.Sprintf("%dms", 15+ m.serversCursor*7)
+					peerServers[m.serversCursor].Latency = fmt.Sprintf("%dms", 15+m.serversCursor*7)
 					m.serversMsg = "↻ Ping a peers actualizado"
 				}
 				if m.serversTab == 0 {
@@ -1344,6 +1432,186 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						m.serversMsg = fmt.Sprintf("✓ %s habilitado", s.Name)
 					}
 				}
+				return m, nil
+			default:
+				return m, nil
+			}
+		}
+		// ---------- VAULT WIZARD ----------
+		if m.mode == modeVault {
+			q := vaultWizardQuestions[m.vaultWizardStep]
+			hasOptions := len(q.Options) > 0
+			switch msg.String() {
+			case "ctrl+c":
+				m.quitting = true
+				return m, tea.Quit
+			case "esc":
+				if m.vaultWizardStep > 0 {
+					m.vaultWizardStep--
+					nq := vaultWizardQuestions[m.vaultWizardStep]
+					// restaura valor previo
+					switch nq.Key {
+					case "Path":
+						m.vaultWizardInput = m.vaultWizardData.Path
+					case "Name":
+						m.vaultWizardInput = m.vaultWizardData.Name
+					case "Purpose":
+						m.vaultWizardInput = m.vaultWizardData.Purpose
+					case "VaultType":
+						m.vaultWizardInput = m.vaultWizardData.VaultType
+					case "Sync":
+						m.vaultWizardInput = m.vaultWizardData.Sync
+					case "Indexing":
+						m.vaultWizardInput = m.vaultWizardData.Indexing
+					case "Embeddings":
+						m.vaultWizardInput = m.vaultWizardData.Embeddings
+					default:
+						m.vaultWizardInput = nq.Default
+					}
+					m.vaultWizardCursor = 0
+				} else {
+					m.mode = modeInput
+					m.input = ""
+					m.cursor = 0
+				}
+				return m, nil
+			case "up", "k":
+				if hasOptions {
+					m.vaultWizardCursor = (m.vaultWizardCursor - 1 + len(q.Options)) % len(q.Options)
+					m.vaultWizardInput = q.Options[m.vaultWizardCursor]
+				}
+				return m, nil
+			case "down", "j":
+				if hasOptions {
+					m.vaultWizardCursor = (m.vaultWizardCursor + 1) % len(q.Options)
+					m.vaultWizardInput = q.Options[m.vaultWizardCursor]
+				}
+				return m, nil
+			case "enter":
+				val := strings.TrimSpace(m.vaultWizardInput)
+				if val == "" {
+					val = q.Default
+				}
+				switch q.Key {
+				case "Path":
+					m.vaultWizardData.Path = val
+				case "Name":
+					m.vaultWizardData.Name = val
+				case "Purpose":
+					m.vaultWizardData.Purpose = val
+				case "VaultType":
+					m.vaultWizardData.VaultType = val
+				case "Sync":
+					m.vaultWizardData.Sync = val
+				case "Indexing":
+					m.vaultWizardData.Indexing = val
+				case "Embeddings":
+					m.vaultWizardData.Embeddings = val
+				}
+				if m.vaultWizardStep < len(vaultWizardQuestions)-1 {
+					m.vaultWizardStep++
+					nq := vaultWizardQuestions[m.vaultWizardStep]
+					// precarga siguiente
+					switch nq.Key {
+					case "Path":
+						m.vaultWizardInput = m.vaultWizardData.Path
+					case "Name":
+						m.vaultWizardInput = m.vaultWizardData.Name
+					case "Purpose":
+						m.vaultWizardInput = m.vaultWizardData.Purpose
+					case "VaultType":
+						m.vaultWizardInput = m.vaultWizardData.VaultType
+					case "Sync":
+						m.vaultWizardInput = m.vaultWizardData.Sync
+					case "Indexing":
+						m.vaultWizardInput = m.vaultWizardData.Indexing
+					case "Embeddings":
+						m.vaultWizardInput = m.vaultWizardData.Embeddings
+					default:
+						m.vaultWizardInput = nq.Default
+					}
+					// set cursor to current value index
+					m.vaultWizardCursor = 0
+					if len(nq.Options) > 0 {
+						for i, opt := range nq.Options {
+							if strings.EqualFold(opt, m.vaultWizardInput) {
+								m.vaultWizardCursor = i
+								break
+							}
+						}
+					}
+				} else {
+					// wizard completo — aplica config
+					m.vaultPath = m.vaultWizardData.Path
+					m.vaultOK = true
+					// actualiza settingsValues para reflejar
+					settingsValues["Vault connection"] = "Connected"
+					settingsValues["Default vault"] = m.vaultWizardData.Path
+					settingsValues["Sync"] = m.vaultWizardData.Sync
+					settingsValues["Indexing"] = m.vaultWizardData.Indexing
+					settingsValues["Embeddings"] = m.vaultWizardData.Embeddings
+					m.mode = modeMessage
+					m.msgTitle = "Vault configurado"
+					m.msgBody = fmt.Sprintf("Vault: %s\nName: %s\nPropósito: %s\nTipo: %s\nSync: %s\nIndexing: %s\nEmbeddings: %s\n\nVault listo. Usa /vault de nuevo para reconfigurar o presiona 'o' para abrir en explorer.", m.vaultWizardData.Path, m.vaultWizardData.Name, m.vaultWizardData.Purpose, m.vaultWizardData.VaultType, m.vaultWizardData.Sync, m.vaultWizardData.Indexing, m.vaultWizardData.Embeddings)
+					m.vaultWizardStep = 0
+					m.vaultWizardInput = ""
+				}
+				return m, nil
+			case "o", "O":
+				_ = openVault()
+				m.msgTitle = "Vault"
+				m.msgBody = "Vault abierto en explorer: " + m.vaultWizardData.Path
+				m.mode = modeMessage
+				return m, nil
+			case "backspace":
+				if !hasOptions && len(m.vaultWizardInput) > 0 {
+					m.vaultWizardInput = m.vaultWizardInput[:len(m.vaultWizardInput)-1]
+				}
+				return m, nil
+			case "space":
+				if !hasOptions {
+					m.vaultWizardInput += " "
+				}
+				return m, nil
+			default:
+				s := msg.String()
+				if len(s) == 1 && !hasOptions {
+					m.vaultWizardInput += s
+				}
+				return m, nil
+			}
+		}
+		// ---------- GRAPH INTERACTIVO ----------
+		if m.mode == modeGraph {
+			switch msg.String() {
+			case "ctrl+c":
+				m.quitting = true
+				return m, tea.Quit
+			case "esc", "q", "Q":
+				m.mode = modeInput
+				m.input = ""
+				m.cursor = 0
+				return m, nil
+			case "up", "k":
+				m.graphCursor = (m.graphCursor - 1 + len(graphNodes)) % len(graphNodes)
+				return m, nil
+			case "down", "j":
+				m.graphCursor = (m.graphCursor + 1) % len(graphNodes)
+				return m, nil
+			case "left", "h":
+				m.graphCursor = (m.graphCursor - 3 + len(graphNodes)) % len(graphNodes)
+				return m, nil
+			case "right", "l":
+				m.graphCursor = (m.graphCursor + 3) % len(graphNodes)
+				return m, nil
+			case "enter", " ":
+				n := graphNodes[m.graphCursor]
+				m.mode = modeMessage
+				m.msgTitle = n.Label
+				m.msgBody = fmt.Sprintf("%s (%s)\n\n%s\n\nConexiones: %d\n\nPresiona esc para volver al grafo.", n.Label, n.Type, n.Desc, 2+m.graphCursor%4)
+				return m, nil
+			case "r", "R":
+				m.graphCursor = 0
 				return m, nil
 			default:
 				return m, nil
@@ -1523,7 +1791,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			for i := range mcpServers {
 				if mcpServers[i].Status == "Connecting" {
 					mcpServers[i].Status = "Connected"
-					mcpServers[i].Latency = fmt.Sprintf("%dms", 8+ (i*5)%40)
+					mcpServers[i].Latency = fmt.Sprintf("%dms", 8+(i*5)%40)
 					if mcpServers[i].Name == "notion" && mcpServers[i].ErrorMsg != "" {
 						// sigue needing auth hasta que se configure, lo dejamos en Needs auth si tenía error
 						// pero para demo, lo conectamos
@@ -1679,6 +1947,8 @@ func (m model) View() tea.View {
 		body = viewServers(m)
 	case modeGraph:
 		body = viewGraph(m)
+	case modeVault:
+		body = viewVaultWizard(m)
 	}
 
 	content := lipgloss.JoinVertical(lipgloss.Center, header, "", body)
@@ -1747,8 +2017,8 @@ func viewInput(m model) string {
 	}
 
 	hints := lipgloss.NewStyle().Foreground(colMuted).Render(
-		lipgloss.NewStyle().Bold(true).Foreground(colText).Render("enter")+" run / @chat    "+
-			lipgloss.NewStyle().Bold(true).Foreground(colText).Render("ctrl+c")+" quit")
+		lipgloss.NewStyle().Bold(true).Foreground(colText).Render("enter") + " run / @chat    " +
+			lipgloss.NewStyle().Bold(true).Foreground(colText).Render("ctrl+c") + " quit")
 
 	if mentionSuggest != "" {
 		return lipgloss.JoinVertical(lipgloss.Right, panel, mentionSuggest, hints)
@@ -1788,8 +2058,8 @@ func viewRunning(m model) string {
 		Render(logStyle.Render(strings.Join(logLines, "\n")))
 
 	hints := lipgloss.NewStyle().Foreground(colMuted).Render(
-		lipgloss.NewStyle().Bold(true).Foreground(colText).Render("esc")+" new task    "+
-			lipgloss.NewStyle().Bold(true).Foreground(colText).Render("ctrl+c")+" quit")
+		lipgloss.NewStyle().Bold(true).Foreground(colText).Render("esc") + " new task    " +
+			lipgloss.NewStyle().Bold(true).Foreground(colText).Render("ctrl+c") + " quit")
 
 	return lipgloss.JoinVertical(lipgloss.Right, agentsBlock, "", logsBlock, hints)
 }
@@ -2301,10 +2571,10 @@ func viewServers(m model) string {
 
 func viewGraph(m model) string {
 	title := lipgloss.NewStyle().Bold(true).Foreground(colAccent).Render("KNOWLEDGE GRAPH")
-	sub := lipgloss.NewStyle().Foreground(colMuted).Render("12 nodes  •  23 edges  •  4 agents  •  synced  •  Agent Vault")
+	sub := lipgloss.NewStyle().Foreground(colMuted).Render(fmt.Sprintf("12 nodes  •  23 edges  •  4 agents  •  synced  •  %d/%d", m.graphCursor+1, len(graphNodes)))
 	header := lipgloss.JoinVertical(lipgloss.Left, title, sub, "")
-
-	graph := []string{
+	// grafo base
+	baseGraph := []string{
 		lipgloss.NewStyle().Foreground(colMuted).Render("                         ") + lipgloss.NewStyle().Foreground(colPurple).Bold(true).Render("● Agent"),
 		lipgloss.NewStyle().Foreground(colBorder).Render("                            │"),
 		lipgloss.NewStyle().Foreground(colBorder).Render("                ┌────────────┼────────────┐"),
@@ -2318,9 +2588,17 @@ func viewGraph(m model) string {
 		lipgloss.NewStyle().Foreground(colBorder).Render("    │       │  │       │ │  │       │  │       │"),
 		lipgloss.NewStyle().Foreground(colMuted2).Render("  ○ config ● context") + lipgloss.NewStyle().Foreground(colWarn).Render(" ● reviewer") + lipgloss.NewStyle().Foreground(colPurple).Render(" ● architect") + lipgloss.NewStyle().Foreground(colSuccess).Render(" ○ dev") + lipgloss.NewStyle().Foreground(lipgloss.Color("#4a8af4")).Render(" ● researcher"),
 	}
-
-	content := strings.Join(graph, "\n")
-	// center graph
+	// resalta línea que contiene el nodo seleccionado
+	sel := graphNodes[m.graphCursor]
+	highlighted := make([]string, len(baseGraph))
+	for i, line := range baseGraph {
+		if strings.Contains(line, sel.Label) {
+			highlighted[i] = lipgloss.NewStyle().Background(colPanel2).Foreground(colWhite).Bold(true).Padding(0, 1).Render(line)
+		} else {
+			highlighted[i] = line
+		}
+	}
+	content := strings.Join(highlighted, "\n")
 	graphBox := lipgloss.NewStyle().
 		Background(colPanel).
 		BorderStyle(lipgloss.NormalBorder()).
@@ -2329,404 +2607,543 @@ func viewGraph(m model) string {
 		Width(76).
 		Height(16).
 		Render(content)
-
-	// footer stats like screenshot
+	// panel de detalle del nodo seleccionado
+	selDetail := lipgloss.NewStyle().Bold(true).Foreground(sel.Color).Render("▶ "+sel.Label) + lipgloss.NewStyle().Foreground(colMuted).Render("  •  "+sel.Type) + "\n" + lipgloss.NewStyle().Foreground(colText2).Render(sel.Desc)
+	detailBox := lipgloss.NewStyle().Background(colPanel2).BorderStyle(lipgloss.NormalBorder()).BorderForeground(colBorder).Padding(0, 1).Width(76).Render(selDetail)
 	stats := lipgloss.NewStyle().Foreground(colMuted).Render("◉ 12 nodes  •  23 edges  •  4 agents  •  synced") +
 		lipgloss.NewStyle().Foreground(colMuted2).Render("    │    ") +
 		lipgloss.NewStyle().Foreground(colAccent).Render("vault: ~/agent-vault")
 	statsLine := lipgloss.NewStyle().Width(76).Align(lipgloss.Center).Render(stats)
-
 	hints := lipgloss.NewStyle().Foreground(colMuted).Render(
 		lipgloss.NewStyle().Bold(true).Foreground(colText).Render("esc") + " volver  " +
-			lipgloss.NewStyle().Bold(true).Foreground(colText).Render("↑↓") + " navegar  " +
-			lipgloss.NewStyle().Bold(true).Foreground(colText).Render("enter") + " inspeccionar",
+			lipgloss.NewStyle().Bold(true).Foreground(colText).Render("↑↓←→") + " navegar  " +
+			lipgloss.NewStyle().Bold(true).Foreground(colText).Render("enter") + " inspeccionar  " +
+			lipgloss.NewStyle().Bold(true).Foreground(colText).Render("r") + " reset",
 	)
-
 	panel := lipgloss.NewStyle().
 		Background(colPanel).
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderForeground(colBorder).
 		Padding(0, 1).
 		Width(76).
-		Render(lipgloss.JoinVertical(lipgloss.Left, header, "", graphBox, statsLine))
+		Render(lipgloss.JoinVertical(lipgloss.Left, header, "", graphBox, detailBox, statsLine))
+	return lipgloss.JoinVertical(lipgloss.Right, panel, hints)
+}
 
+func viewVaultWizard(m model) string {
+	q := vaultWizardQuestions[m.vaultWizardStep]
+	progress := fmt.Sprintf("Paso %d/%d", m.vaultWizardStep+1, len(vaultWizardQuestions))
+	title := lipgloss.NewStyle().Bold(true).Foreground(colAccent).Render("VAULT  —  Configuración")
+	sub := lipgloss.NewStyle().Foreground(colMuted).Render(progress + "  •  /vault  •  " + q.Title)
+	header := lipgloss.JoinVertical(lipgloss.Left, title, sub, "")
+	// progress bar
+	filled := (m.vaultWizardStep + 1) * 20 / len(vaultWizardQuestions)
+	bar := strings.Repeat("█", filled) + strings.Repeat("░", 20-filled)
+	barLine := lipgloss.NewStyle().Foreground(colAccent).Render(bar) + lipgloss.NewStyle().Foreground(colMuted).Render(fmt.Sprintf(" %d%%", (m.vaultWizardStep+1)*100/len(vaultWizardQuestions)))
+	// pregunta
+	question := lipgloss.NewStyle().Bold(true).Foreground(colWhite).Render(q.Prompt)
+	// input / opciones
+	var body string
+	if len(q.Options) > 0 {
+		var opts []string
+		for i, opt := range q.Options {
+			style := lipgloss.NewStyle().Foreground(colText2).Padding(0, 1)
+			if i == m.vaultWizardCursor {
+				style = lipgloss.NewStyle().Foreground(colPanel).Background(colAccent).Bold(true).Padding(0, 1)
+			}
+			// marca actual
+			check := "  "
+			if opt == m.vaultWizardInput {
+				check = "▶ "
+			}
+			opts = append(opts, style.Render(check+opt))
+		}
+		body = strings.Join(opts, "\n")
+	} else {
+		// campo de texto
+		cursor := "_"
+		if len(m.vaultWizardInput) > 0 {
+			cursor = ""
+		}
+		input := m.vaultWizardInput + lipgloss.NewStyle().Background(colWhite).Foreground(lipgloss.Color("#0a0c0f")).Render(cursor)
+		if input == "" {
+			input = lipgloss.NewStyle().Foreground(colMuted).Italic(true).Render(q.Default)
+		}
+		box := lipgloss.NewStyle().Background(colPanel2).BorderStyle(lipgloss.NormalBorder()).BorderForeground(colBorder).Padding(0, 1).Width(56).Render(input)
+		body = box + "\n" + lipgloss.NewStyle().Foreground(colMuted).Italic(true).Render("Escribe y presiona Enter • Esc para volver")
+	}
+	// resumen de lo ya configurado
+	var summary []string
+	for i := 0; i < m.vaultWizardStep; i++ {
+		qq := vaultWizardQuestions[i]
+		var val string
+		switch qq.Key {
+		case "Path":
+			val = m.vaultWizardData.Path
+		case "Name":
+			val = m.vaultWizardData.Name
+		case "Purpose":
+			val = m.vaultWizardData.Purpose
+		case "VaultType":
+			val = m.vaultWizardData.VaultType
+		case "Sync":
+			val = m.vaultWizardData.Sync
+		case "Indexing":
+			val = m.vaultWizardData.Indexing
+		case "Embeddings":
+			val = m.vaultWizardData.Embeddings
+		}
+		summary = append(summary, lipgloss.NewStyle().Foreground(colSuccess).Render("✓ ")+lipgloss.NewStyle().Foreground(colMuted).Render(qq.Title+": ")+lipgloss.NewStyle().Foreground(colText2).Render(val))
+	}
+	summaryBox := ""
+	if len(summary) > 0 {
+		summaryBox = lipgloss.NewStyle().Background(colPanel2).BorderStyle(lipgloss.NormalBorder()).BorderForeground(colBorder).Padding(0, 1).Width(56).Render(strings.Join(summary, "\n"))
+	}
+	// panel principal
+	content := lipgloss.JoinVertical(lipgloss.Left, question, "", body)
+	if summaryBox != "" {
+		content = lipgloss.JoinVertical(lipgloss.Left, content, "", summaryBox)
+	}
+	panel := lipgloss.NewStyle().Background(colPanel).BorderStyle(lipgloss.NormalBorder()).BorderForeground(colBorder2).Padding(1, 2).Width(76).Render(lipgloss.JoinVertical(lipgloss.Left, header, barLine, "", content))
+	hints := lipgloss.NewStyle().Foreground(colMuted).Render(
+		lipgloss.NewStyle().Bold(true).Foreground(colText).Render("enter") + " confirmar  " +
+			lipgloss.NewStyle().Bold(true).Foreground(colText).Render("↑↓") + " opciones  " +
+			lipgloss.NewStyle().Bold(true).Foreground(colText).Render("esc") + " atrás/salir  " +
+			lipgloss.NewStyle().Bold(true).Foreground(colText).Render("o") + " abrir explorer",
+	)
 	return lipgloss.JoinVertical(lipgloss.Right, panel, hints)
 }
 
 func viewChat(m model) string {
-    innerW := 86
-    leftW := 63
-    rightW := 22
-    pad := func(s string, w int) string {
-        lw := lipgloss.Width(s)
-        if lw >= w {
-            return s
-        }
-        return s + strings.Repeat(" ", w-lw)
-    }
-    row := func(left, right string) string {
-        return "│" + pad(left, leftW) + "│" + pad(right, rightW) + "│"
-    }
-    top := "┌" + strings.Repeat("─", innerW) + "┐"
-    midDiv := "├" + strings.Repeat("─", leftW) + "┬" + strings.Repeat("─", rightW) + "┤"
-    botMid := "├" + strings.Repeat("─", leftW) + "┴" + strings.Repeat("─", rightW) + "┤"
-    bottom := "└" + strings.Repeat("─", innerW) + "┘"
-    hdrLeft := lipgloss.NewStyle().Bold(true).Foreground(colWhite).Render(" HUGINN")
-    hdrMid := lipgloss.NewStyle().Foreground(colMuted).Render("AI ORCHESTRATOR")
-    hdrRight := lipgloss.NewStyle().Foreground(colSuccess).Render("● CONNECTED")
-    hdr := "│" + pad(hdrLeft, 28) + pad(hdrMid, 32) + pad(hdrRight, 26) + "│"
-    prompt := "Implement authentication with JWT"
-    if len(m.chatHistory) > 0 {
-        for i:=len(m.chatHistory)-1; i>=0; i-- {
-            if m.chatHistory[i].IsUser && strings.TrimSpace(m.chatHistory[i].Text) != "" {
-                prompt = m.chatHistory[i].Text
-                break
-            }
-        }
-    }
-    if len(prompt) > 38 {
-        prompt = prompt[:38]+"…"
-    }
-    agentStatus := func(name string) (string, color.Color) {
-        for _, a := range m.agents {
-            if strings.EqualFold(a.name, name) {
-                switch a.status {
-                case statusWorking:
-                    return "WORKING", colAccent
-                case statusDone:
-                    return "READY", colSuccess
-                case statusTesting:
-                    return "REVIEW", lipgloss.Color("#e8a83e")
-                default:
-                    return "READY", colSuccess
-                }
-            }
-        }
-        if name=="ChatGPT" {
-            return "READY", colSuccess
-        }
-        return "READY", colSuccess
-    }
-    inputLine := m.chatInput
-    if strings.TrimSpace(inputLine)=="" {
-        inputLine = lipgloss.NewStyle().Foreground(colMuted).Render("_ ")
-    } else {
-        before := inputLine[:m.chatCursor]
-        after := ""
-        cur := " "
-        if m.chatCursor < len(inputLine) {
-            cur = string(inputLine[m.chatCursor])
-            if m.chatCursor+1 < len(inputLine) {
-                after = inputLine[m.chatCursor+1:]
-            }
-        }
-        caret := lipgloss.NewStyle().Background(colWhite).Foreground(lipgloss.Color("#0a0c0f")).Render(cur)
-        inputLine = lipgloss.NewStyle().Foreground(colWhite).Render(before) + caret + lipgloss.NewStyle().Foreground(colWhite).Render(after)
-    }
-    inputRow := lipgloss.NewStyle().Foreground(colAccent).Render("> ") + inputLine
-    leftLines := []string{
-        "",
-        lipgloss.NewStyle().Bold(true).Foreground(colWhite).Render("  HUGINN"),
-        lipgloss.NewStyle().Foreground(colBorder).Render("  "+strings.Repeat("─", 45)),
-        "",
-        lipgloss.NewStyle().Foreground(colAccent).Render("  > ") + lipgloss.NewStyle().Foreground(colWhite).Render(prompt),
-        "",
-        lipgloss.NewStyle().Foreground(colBorder).Render("  "+strings.Repeat("─", 45)),
-        "",
-        lipgloss.NewStyle().Foreground(colSuccess).Render("  ● HUGINN") + lipgloss.NewStyle().Foreground(colMuted).Render("   Orchestrating"),
-        "",
-    }
-    dispatchTitle := lipgloss.NewStyle().Bold(true).Foreground(colWhite).Render(" AGENT DISPATCH")
-    dispatchRows := []string{
-        "",
-        dispatchTitle,
-        "",
-    }
-    agents := []string{"ChatGPT", "OpenCode", "Kilo Code", "Mimo Code", "Muse Code"}
-    agentTasks := map[string]string{
-        "ChatGPT": "Architecture analysis",
-        "OpenCode": "Backend implementation",
-        "Kilo Code": "Edge-case analysis",
-        "Mimo Code": "Code review",
-        "Muse Code": "Documentation",
-    }
-    for _, an := range agents {
-        st, _ := agentStatus(an)
-        icon := "◌"
-        if st=="READY" {
-            icon = "✓"
-        }
-        if st=="WORKING" {
-            icon = "●"
-        }
-        var iconCol color.Color = colMuted
-        if icon=="✓" {
-            iconCol = colSuccess
-        }
-        if icon=="●" {
-            iconCol = colAccent
-        }
-        namePadded := pad(an, 11)
-        taskPadded := pad(agentTasks[an], 24)
-        line2 := lipgloss.NewStyle().Foreground(colText2).Render(namePadded) + lipgloss.NewStyle().Foreground(colMuted).Render(" → ") + lipgloss.NewStyle().Foreground(colText2).Render(taskPadded) + lipgloss.NewStyle().Foreground(iconCol).Render(icon)
-        dispatchRows = append(dispatchRows, line2)
-    }
-    dispatchBoxContent := strings.Join(dispatchRows, "\n")
-    dispatchBox := lipgloss.NewStyle().BorderStyle(lipgloss.NormalBorder()).BorderForeground(colBorder).Padding(0,1).Width(55).Render(dispatchBoxContent)
-    leftLines = append(leftLines, dispatchBox)
-    leftLines = append(leftLines, "")
-    leftLines = append(leftLines, lipgloss.NewStyle().Bold(true).Foreground(colWhite).Render("  BACKGROUND TASKS"))
-    leftLines = append(leftLines, lipgloss.NewStyle().Foreground(colBorder).Render("  "+strings.Repeat("─", 45)))
-    bgTasks := []string{
-        lipgloss.NewStyle().Foreground(colSuccess).Render("  [✓]") + lipgloss.NewStyle().Foreground(colText2).Render(" Research authentication patterns") + lipgloss.NewStyle().Foreground(colMuted).Render("             2m 14s"),
-        lipgloss.NewStyle().Foreground(colAccent).Render("  [●]") + lipgloss.NewStyle().Foreground(colText2).Render(" Analyze existing architecture") + lipgloss.NewStyle().Foreground(colMuted).Render("                 34s"),
-        lipgloss.NewStyle().Foreground(colMuted).Render("  [◌]") + lipgloss.NewStyle().Foreground(colMuted).Render(" Review security implications") + lipgloss.NewStyle().Foreground(colMuted).Render("                  queued"),
-    }
-    leftLines = append(leftLines, bgTasks...)
-    leftLines = append(leftLines, "")
-    leftLines = append(leftLines, lipgloss.NewStyle().Foreground(colBorder).Render("  "+strings.Repeat("─", 45)))
-    leftLines = append(leftLines, "  "+inputRow)
-    rightLines := []string{
-        lipgloss.NewStyle().Bold(true).Foreground(colWhite).Render(" AGENTS"),
-        "",
-    }
-    for _, an := range agents {
-        st, col := agentStatus(an)
-        dot := lipgloss.NewStyle().Foreground(col).Render("●")
-        name := lipgloss.NewStyle().Foreground(colText).Render(pad(an, 10))
-        status := lipgloss.NewStyle().Foreground(col).Render(st)
-        rightLines = append(rightLines, fmt.Sprintf(" %s %s %s", dot, name, status))
-    }
-    rightLines = append(rightLines, "")
-    rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colBorder).Render(strings.Repeat("─", 18)))
-    rightLines = append(rightLines, lipgloss.NewStyle().Bold(true).Foreground(colWhite).Render(" TASK PIPELINE"))
-    rightLines = append(rightLines, "")
-    rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colSuccess).Render(" ● Research"))
-    rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colSuccess).Render("   ✓ completed"))
-    rightLines = append(rightLines, "")
-    rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colAccent).Render(" ● Architecture"))
-    rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colAccent).Render("   ● running"))
-    rightLines = append(rightLines, "")
-    rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colMuted).Render(" ○ Implementation"))
-    rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colMuted).Render("   queued"))
-    rightLines = append(rightLines, "")
-    rightLines = append(rightLines, lipgloss.NewStyle().Bold(true).Foreground(colWhite).Render(" CONTEXT"))
-    rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colBorder).Render(strings.Repeat("─", 18)))
-    rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colMuted).Render(" Project"))
-    rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colText2).Render(" └─ huginn-tui"))
-    rightLines = append(rightLines, "")
-    rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colMuted).Render(" Memory"))
-    rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colMuted).Render(" ├─ auth decisions"))
-    rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colMuted).Render(" ├─ agent history"))
-    rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colMuted).Render(" └─ project context"))
-    totalRows := 26
-    for len(leftLines) < totalRows { leftLines = append(leftLines, "") }
-    for len(rightLines) < totalRows { rightLines = append(rightLines, "") }
-    if len(leftLines) > totalRows { leftLines = leftLines[:totalRows] }
-    if len(rightLines) > totalRows { rightLines = rightLines[:totalRows] }
-    var rows []string
-    rows = append(rows, top)
-    rows = append(rows, hdr)
-    rows = append(rows, midDiv)
-    for i:=0; i<totalRows; i++ {
-        l := leftLines[i]
-        r := rightLines[i]
-        rows = append(rows, row(l, r))
-    }
-    rows = append(rows, botMid)
-    bottomContent := lipgloss.NewStyle().Foreground(colMuted).Render(" TAB") + lipgloss.NewStyle().Foreground(colText).Render(" Agent   ") +
-        lipgloss.NewStyle().Foreground(colMuted).Render("CTRL+P") + lipgloss.NewStyle().Foreground(colText).Render(" Commands   ") +
-        lipgloss.NewStyle().Foreground(colMuted).Render("CTRL+B") + lipgloss.NewStyle().Foreground(colText).Render(" Background   ") +
-        lipgloss.NewStyle().Foreground(colMuted).Render("CTRL+G") + lipgloss.NewStyle().Foreground(colText).Render(" Graph   ") +
-        lipgloss.NewStyle().Foreground(colMuted).Render("CTRL+L") + lipgloss.NewStyle().Foreground(colText).Render(" Clear   ") +
-        lipgloss.NewStyle().Foreground(colMuted).Render("?") + lipgloss.NewStyle().Foreground(colText).Render(" Help")
-    rows = append(rows, "│" + pad(bottomContent, innerW) + "│")
-    rows = append(rows, bottom)
-    content := strings.Join(rows, "\n")
-    outer := lipgloss.NewStyle().BorderStyle(lipgloss.NormalBorder()).BorderForeground(colBorder2).Render(content)
-    return lipgloss.Place(120, 38, lipgloss.Center, lipgloss.Center, outer)
+	innerW := 86
+	leftW := 63
+	rightW := 22
+	pad := func(s string, w int) string {
+		lw := lipgloss.Width(s)
+		if lw >= w {
+			return s
+		}
+		return s + strings.Repeat(" ", w-lw)
+	}
+	truncate := func(s string, w int) string {
+		if lipgloss.Width(s) <= w {
+			return s
+		}
+		// corta por runas
+		runes := []rune(s)
+		for len(runes) > 0 && lipgloss.Width(string(runes)) > w-1 {
+			runes = runes[:len(runes)-1]
+		}
+		return string(runes) + "…"
+	}
+	row := func(left, right string) string {
+		return "│" + pad(left, leftW) + "│" + pad(right, rightW) + "│"
+	}
+	top := "┌" + strings.Repeat("─", innerW) + "┐"
+	midDiv := "├" + strings.Repeat("─", leftW) + "┬" + strings.Repeat("─", rightW) + "┤"
+	botMid := "├" + strings.Repeat("─", leftW) + "┴" + strings.Repeat("─", rightW) + "┤"
+	bottom := "└" + strings.Repeat("─", innerW) + "┘"
+	hdrLeft := lipgloss.NewStyle().Bold(true).Foreground(colWhite).Render(" HUGINN")
+	hdrMid := lipgloss.NewStyle().Foreground(colMuted).Render("AI ORCHESTRATOR")
+	hdrRight := lipgloss.NewStyle().Foreground(colSuccess).Render("● CONNECTED")
+	hdr := "│" + pad(hdrLeft, 28) + pad(hdrMid, 32) + pad(hdrRight, 26) + "│"
+	prompt := "Implement authentication with JWT"
+	if len(m.chatHistory) > 0 {
+		for i := len(m.chatHistory) - 1; i >= 0; i-- {
+			if m.chatHistory[i].IsUser && strings.TrimSpace(m.chatHistory[i].Text) != "" {
+				prompt = m.chatHistory[i].Text
+				break
+			}
+		}
+	}
+	if len(prompt) > 38 {
+		prompt = prompt[:38] + "…"
+	}
+	agentStatus := func(name string) (string, color.Color) {
+		for _, a := range m.agents {
+			if strings.EqualFold(a.name, name) {
+				switch a.status {
+				case statusWorking:
+					return "WORKING", colAccent
+				case statusDone:
+					return "READY", colSuccess
+				case statusTesting:
+					return "REVIEW", lipgloss.Color("#e8a83e")
+				default:
+					return "READY", colSuccess
+				}
+			}
+		}
+		if name == "ChatGPT" {
+			return "READY", colSuccess
+		}
+		return "READY", colSuccess
+	}
+	inputLine := m.chatInput
+	if strings.TrimSpace(inputLine) == "" {
+		inputLine = lipgloss.NewStyle().Foreground(colMuted).Render("_ ")
+	} else {
+		before := inputLine[:m.chatCursor]
+		after := ""
+		cur := " "
+		if m.chatCursor < len(inputLine) {
+			cur = string(inputLine[m.chatCursor])
+			if m.chatCursor+1 < len(inputLine) {
+				after = inputLine[m.chatCursor+1:]
+			}
+		}
+		caret := lipgloss.NewStyle().Background(colWhite).Foreground(lipgloss.Color("#0a0c0f")).Render(cur)
+		inputLine = lipgloss.NewStyle().Foreground(colWhite).Render(before) + caret + lipgloss.NewStyle().Foreground(colWhite).Render(after)
+	}
+	inputRow := lipgloss.NewStyle().Foreground(colAccent).Render("> ") + inputLine
+	leftLines := []string{
+		"",
+		lipgloss.NewStyle().Bold(true).Foreground(colWhite).Render("  HUGINN"),
+		lipgloss.NewStyle().Foreground(colBorder).Render("  " + strings.Repeat("─", 45)),
+		"",
+		lipgloss.NewStyle().Foreground(colAccent).Render("  > ") + lipgloss.NewStyle().Foreground(colWhite).Render(prompt),
+		"",
+		lipgloss.NewStyle().Foreground(colBorder).Render("  " + strings.Repeat("─", 45)),
+		"",
+		lipgloss.NewStyle().Foreground(colSuccess).Render("  ● HUGINN") + lipgloss.NewStyle().Foreground(colMuted).Render("   Orchestrating"),
+		"",
+	}
+	// historial de chat visible — garantiza que el usuario vea la respuesta
+	if len(m.chatHistory) > 0 {
+		hist := m.chatHistory
+		if len(hist) > 5 {
+			hist = hist[len(hist)-5:]
+		}
+		for _, msg := range hist {
+			if msg.IsUser {
+				line := lipgloss.NewStyle().Foreground(colAccent).Render("  ▶ You: ") + lipgloss.NewStyle().Foreground(colWhite).Render(truncate(msg.Text, 44))
+				leftLines = append(leftLines, line)
+			} else {
+				if strings.Contains(msg.Text, "… escribiendo") {
+					line := lipgloss.NewStyle().Foreground(colMuted).Render("    ◌ " + msg.From + " escribiendo…")
+					leftLines = append(leftLines, line)
+				} else {
+					col := colText2
+					switch msg.From {
+					case "ChatGPT":
+						col = colPurple
+					case "OpenCode":
+						col = colAccent
+					case "Kilo Code":
+						col = colSuccess
+					case "Mimo Code":
+						col = lipgloss.Color("#f59e0b")
+					case "Muse Code":
+						col = lipgloss.Color("#e8a83e")
+					case "Hugin":
+						col = colWarn
+					}
+					prefix := lipgloss.NewStyle().Bold(true).Foreground(col).Render("  " + msg.From + ": ")
+					body := lipgloss.NewStyle().Foreground(colText2).Render(truncate(msg.Text, 42))
+					leftLines = append(leftLines, prefix+body)
+				}
+			}
+		}
+		leftLines = append(leftLines, "")
+	}
+	dispatchTitle := lipgloss.NewStyle().Bold(true).Foreground(colWhite).Render(" AGENT DISPATCH")
+	dispatchRows := []string{
+		"",
+		dispatchTitle,
+		"",
+	}
+	agents := []string{"ChatGPT", "OpenCode", "Kilo Code", "Mimo Code", "Muse Code"}
+	agentTasks := map[string]string{
+		"ChatGPT":   "Architecture analysis",
+		"OpenCode":  "Backend implementation",
+		"Kilo Code": "Edge-case analysis",
+		"Mimo Code": "Code review",
+		"Muse Code": "Documentation",
+	}
+	for _, an := range agents {
+		st, _ := agentStatus(an)
+		icon := "◌"
+		if st == "READY" {
+			icon = "✓"
+		}
+		if st == "WORKING" {
+			icon = "●"
+		}
+		var iconCol color.Color = colMuted
+		if icon == "✓" {
+			iconCol = colSuccess
+		}
+		if icon == "●" {
+			iconCol = colAccent
+		}
+		namePadded := pad(an, 11)
+		taskPadded := pad(agentTasks[an], 24)
+		line2 := lipgloss.NewStyle().Foreground(colText2).Render(namePadded) + lipgloss.NewStyle().Foreground(colMuted).Render(" → ") + lipgloss.NewStyle().Foreground(colText2).Render(taskPadded) + lipgloss.NewStyle().Foreground(iconCol).Render(icon)
+		dispatchRows = append(dispatchRows, line2)
+	}
+	dispatchBoxContent := strings.Join(dispatchRows, "\n")
+	dispatchBox := lipgloss.NewStyle().BorderStyle(lipgloss.NormalBorder()).BorderForeground(colBorder).Padding(0, 1).Width(55).Render(dispatchBoxContent)
+	leftLines = append(leftLines, dispatchBox)
+	leftLines = append(leftLines, "")
+	leftLines = append(leftLines, lipgloss.NewStyle().Bold(true).Foreground(colWhite).Render("  BACKGROUND TASKS"))
+	leftLines = append(leftLines, lipgloss.NewStyle().Foreground(colBorder).Render("  "+strings.Repeat("─", 45)))
+	bgTasks := []string{
+		lipgloss.NewStyle().Foreground(colSuccess).Render("  [✓]") + lipgloss.NewStyle().Foreground(colText2).Render(" Research authentication patterns") + lipgloss.NewStyle().Foreground(colMuted).Render("             2m 14s"),
+		lipgloss.NewStyle().Foreground(colAccent).Render("  [●]") + lipgloss.NewStyle().Foreground(colText2).Render(" Analyze existing architecture") + lipgloss.NewStyle().Foreground(colMuted).Render("                 34s"),
+		lipgloss.NewStyle().Foreground(colMuted).Render("  [◌]") + lipgloss.NewStyle().Foreground(colMuted).Render(" Review security implications") + lipgloss.NewStyle().Foreground(colMuted).Render("                  queued"),
+	}
+	leftLines = append(leftLines, bgTasks...)
+	leftLines = append(leftLines, "")
+	leftLines = append(leftLines, lipgloss.NewStyle().Foreground(colBorder).Render("  "+strings.Repeat("─", 45)))
+	leftLines = append(leftLines, "  "+inputRow)
+	rightLines := []string{
+		lipgloss.NewStyle().Bold(true).Foreground(colWhite).Render(" AGENTS"),
+		"",
+	}
+	for _, an := range agents {
+		st, col := agentStatus(an)
+		dot := lipgloss.NewStyle().Foreground(col).Render("●")
+		name := lipgloss.NewStyle().Foreground(colText).Render(pad(an, 10))
+		status := lipgloss.NewStyle().Foreground(col).Render(st)
+		rightLines = append(rightLines, fmt.Sprintf(" %s %s %s", dot, name, status))
+	}
+	rightLines = append(rightLines, "")
+	rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colBorder).Render(strings.Repeat("─", 18)))
+	rightLines = append(rightLines, lipgloss.NewStyle().Bold(true).Foreground(colWhite).Render(" TASK PIPELINE"))
+	rightLines = append(rightLines, "")
+	rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colSuccess).Render(" ● Research"))
+	rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colSuccess).Render("   ✓ completed"))
+	rightLines = append(rightLines, "")
+	rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colAccent).Render(" ● Architecture"))
+	rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colAccent).Render("   ● running"))
+	rightLines = append(rightLines, "")
+	rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colMuted).Render(" ○ Implementation"))
+	rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colMuted).Render("   queued"))
+	rightLines = append(rightLines, "")
+	rightLines = append(rightLines, lipgloss.NewStyle().Bold(true).Foreground(colWhite).Render(" CONTEXT"))
+	rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colBorder).Render(strings.Repeat("─", 18)))
+	rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colMuted).Render(" Project"))
+	rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colText2).Render(" └─ huginn-tui"))
+	rightLines = append(rightLines, "")
+	rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colMuted).Render(" Memory"))
+	rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colMuted).Render(" ├─ auth decisions"))
+	rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colMuted).Render(" ├─ agent history"))
+	rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colMuted).Render(" └─ project context"))
+	totalRows := 26
+	for len(leftLines) < totalRows {
+		leftLines = append(leftLines, "")
+	}
+	for len(rightLines) < totalRows {
+		rightLines = append(rightLines, "")
+	}
+	if len(leftLines) > totalRows {
+		leftLines = leftLines[:totalRows]
+	}
+	if len(rightLines) > totalRows {
+		rightLines = rightLines[:totalRows]
+	}
+	var rows []string
+	rows = append(rows, top)
+	rows = append(rows, hdr)
+	rows = append(rows, midDiv)
+	for i := 0; i < totalRows; i++ {
+		l := leftLines[i]
+		r := rightLines[i]
+		rows = append(rows, row(l, r))
+	}
+	rows = append(rows, botMid)
+	bottomContent := lipgloss.NewStyle().Foreground(colMuted).Render(" TAB") + lipgloss.NewStyle().Foreground(colText).Render(" Agent   ") +
+		lipgloss.NewStyle().Foreground(colMuted).Render("CTRL+P") + lipgloss.NewStyle().Foreground(colText).Render(" Commands   ") +
+		lipgloss.NewStyle().Foreground(colMuted).Render("CTRL+B") + lipgloss.NewStyle().Foreground(colText).Render(" Background   ") +
+		lipgloss.NewStyle().Foreground(colMuted).Render("CTRL+G") + lipgloss.NewStyle().Foreground(colText).Render(" Graph   ") +
+		lipgloss.NewStyle().Foreground(colMuted).Render("CTRL+L") + lipgloss.NewStyle().Foreground(colText).Render(" Clear   ") +
+		lipgloss.NewStyle().Foreground(colMuted).Render("?") + lipgloss.NewStyle().Foreground(colText).Render(" Help")
+	rows = append(rows, "│"+pad(bottomContent, innerW)+"│")
+	rows = append(rows, bottom)
+	content := strings.Join(rows, "\n")
+	outer := lipgloss.NewStyle().BorderStyle(lipgloss.NormalBorder()).BorderForeground(colBorder2).Render(content)
+	return lipgloss.Place(120, 38, lipgloss.Center, lipgloss.Center, outer)
 }
-
 
 // ===================== CLI LAYER =====================
 const huginnBanner = "Huginn — Agent Vault Intelligence"
 
 type cliArgs struct {
-    Path       string
-    Prompt     string
-    Subcommand string
-    SubArgs    []string
-    Help       bool
-    Version    bool
-    Debug      bool
+	Path       string
+	Prompt     string
+	Subcommand string
+	SubArgs    []string
+	Help       bool
+	Version    bool
+	Debug      bool
 }
 
 var futureSubcommands = map[string]bool{
-    "chat": true, "agent": true, "agents": true, "memory": true, "vault": true, "config": true, "graph": true,
+	"chat": true, "agent": true, "agents": true, "memory": true, "vault": true, "config": true, "graph": true,
 }
 
 func isDebug() bool {
-    if os.Getenv("HUGINN_DEBUG") == "1" || os.Getenv("HUGINN_DEBUG") == "true" {
-        return true
-    }
-    for _, a := range os.Args[1:] {
-        if a == "--debug" {
-            return true
-        }
-    }
-    return false
+	if os.Getenv("HUGINN_DEBUG") == "1" || os.Getenv("HUGINN_DEBUG") == "true" {
+		return true
+	}
+	for _, a := range os.Args[1:] {
+		if a == "--debug" {
+			return true
+		}
+	}
+	return false
 }
 
 func isDirectory(p string) bool {
-    if p == "" {
-        return false
-    }
-    p = strings.Trim(p, `"'`)
-    clean := filepath.Clean(p)
-    info, err := os.Stat(clean)
-    if err != nil {
-        return false
-    }
-    return info.IsDir()
+	if p == "" {
+		return false
+	}
+	p = strings.Trim(p, `"'`)
+	clean := filepath.Clean(p)
+	info, err := os.Stat(clean)
+	if err != nil {
+		return false
+	}
+	return info.IsDir()
 }
 
 func detectPackageManager(root string) string {
-    if _, err := os.Stat(filepath.Join(root, "bun.lockb")); err == nil {
-        return "bun"
-    }
-    if _, err := os.Stat(filepath.Join(root, "pnpm-lock.yaml")); err == nil {
-        return "pnpm"
-    }
-    if _, err := os.Stat(filepath.Join(root, "yarn.lock")); err == nil {
-        return "yarn"
-    }
-    if _, err := os.Stat(filepath.Join(root, "package-lock.json")); err == nil {
-        return "npm"
-    }
-    if _, err := os.Stat(filepath.Join(root, "package.json")); err == nil {
-        return "npm"
-    }
-    return ""
+	if _, err := os.Stat(filepath.Join(root, "bun.lockb")); err == nil {
+		return "bun"
+	}
+	if _, err := os.Stat(filepath.Join(root, "pnpm-lock.yaml")); err == nil {
+		return "pnpm"
+	}
+	if _, err := os.Stat(filepath.Join(root, "yarn.lock")); err == nil {
+		return "yarn"
+	}
+	if _, err := os.Stat(filepath.Join(root, "package-lock.json")); err == nil {
+		return "npm"
+	}
+	if _, err := os.Stat(filepath.Join(root, "package.json")); err == nil {
+		return "npm"
+	}
+	return ""
 }
 
 func detectProject(root string) (bool, string) {
-    markers := []string{"go.mod", "package.json", "pyproject.toml", "Cargo.toml", "README.md", ".git", "AGENTS.md", "huginn.json", "huginn.config.json"}
-    for _, m := range markers {
-        if _, err := os.Stat(filepath.Join(root, m)); err == nil {
-            return true, m
-        }
-    }
-    return false, ""
+	markers := []string{"go.mod", "package.json", "pyproject.toml", "Cargo.toml", "README.md", ".git", "AGENTS.md", "huginn.json", "huginn.config.json"}
+	for _, m := range markers {
+		if _, err := os.Stat(filepath.Join(root, m)); err == nil {
+			return true, m
+		}
+	}
+	return false, ""
 }
 
 func resolveVaultPath() (string, bool) {
-    if v := os.Getenv("HUGINN_VAULT"); v != "" {
-        if _, err := os.Stat(v); err == nil {
-            return v, true
-        }
-        return v, false
-    }
-    if v := os.Getenv("AGENT_VAULT"); v != "" {
-        if _, err := os.Stat(v); err == nil {
-            return v, true
-        }
-        return v, false
-    }
-    home, _ := os.UserHomeDir()
-    candidates := []string{
-        filepath.Join(home, "agent-vault"),
-        filepath.Join(home, "huginn-vault"),
-        filepath.Join(home, ".huginn", "vault"),
-    }
-    for _, c := range candidates {
-        if _, err := os.Stat(c); err == nil {
-            return c, true
-        }
-    }
-    if len(candidates) > 0 {
-        return candidates[0], false
-    }
-    return "", false
+	if v := os.Getenv("HUGINN_VAULT"); v != "" {
+		if _, err := os.Stat(v); err == nil {
+			return v, true
+		}
+		return v, false
+	}
+	if v := os.Getenv("AGENT_VAULT"); v != "" {
+		if _, err := os.Stat(v); err == nil {
+			return v, true
+		}
+		return v, false
+	}
+	home, _ := os.UserHomeDir()
+	candidates := []string{
+		filepath.Join(home, "agent-vault"),
+		filepath.Join(home, "huginn-vault"),
+		filepath.Join(home, ".huginn", "vault"),
+	}
+	for _, c := range candidates {
+		if _, err := os.Stat(c); err == nil {
+			return c, true
+		}
+	}
+	if len(candidates) > 0 {
+		return candidates[0], false
+	}
+	return "", false
 }
 
 func parseArgs(raw []string) (cliArgs, error) {
-    var out cliArgs
-    var positional []string
-    for _, a := range raw {
-        switch a {
-        case "--help", "-h", "-help", "help":
-            if len(positional) == 0 && len(raw) == 1 {
-                out.Help = true
-                return out, nil
-            }
-            out.Help = true
-        case "--version", "-v", "-version", "version":
-            if len(positional) == 0 && len(raw) == 1 {
-                out.Version = true
-                return out, nil
-            }
-            out.Version = true
-        case "--debug":
-            out.Debug = true
-        default:
-            if strings.HasPrefix(a, "--") {
-                return out, fmt.Errorf("flag desconocido: %s", a)
-            }
-            if strings.HasPrefix(a, "-") && len(a) > 1 {
-                return out, fmt.Errorf("flag desconocido: %s", a)
-            }
-            positional = append(positional, a)
-        }
-    }
-    if out.Help || out.Version {
-        return out, nil
-    }
-    if len(positional) > 0 && futureSubcommands[positional[0]] {
-        out.Subcommand = positional[0]
-        out.SubArgs = positional[1:]
-        return out, nil
-    }
-    if len(positional) == 0 {
-        out.Path = "."
-        return out, nil
-    }
-    if len(positional) == 1 {
-        p := positional[0]
-        if p == "." || p == "./" || isDirectory(p) {
-            out.Path = p
-        } else {
-            isAbs := filepath.IsAbs(p) || (len(p) >= 2 && p[1] == ':')
-            if isAbs || (strings.Contains(p, string(os.PathSeparator)) && isDirectory(p)) {
-                out.Path = p
-            } else {
-                out.Prompt = p
-                out.Path = "."
-            }
-        }
-        return out, nil
-    }
-    first := positional[0]
-    if first == "." || first == "./" || isDirectory(first) || filepath.IsAbs(first) || (len(first) >= 2 && first[1] == ':') {
-        if isDirectory(first) || filepath.IsAbs(first) || strings.Contains(first, string(os.PathSeparator)) {
-            out.Path = first
-            out.Prompt = strings.Join(positional[1:], " ")
-            return out, nil
-        }
-    }
-    out.Prompt = strings.Join(positional, " ")
-    out.Path = "."
-    return out, nil
+	var out cliArgs
+	var positional []string
+	for _, a := range raw {
+		switch a {
+		case "--help", "-h", "-help", "help":
+			if len(positional) == 0 && len(raw) == 1 {
+				out.Help = true
+				return out, nil
+			}
+			out.Help = true
+		case "--version", "-v", "-version", "version":
+			if len(positional) == 0 && len(raw) == 1 {
+				out.Version = true
+				return out, nil
+			}
+			out.Version = true
+		case "--debug":
+			out.Debug = true
+		default:
+			if strings.HasPrefix(a, "--") {
+				return out, fmt.Errorf("flag desconocido: %s", a)
+			}
+			if strings.HasPrefix(a, "-") && len(a) > 1 {
+				return out, fmt.Errorf("flag desconocido: %s", a)
+			}
+			positional = append(positional, a)
+		}
+	}
+	if out.Help || out.Version {
+		return out, nil
+	}
+	if len(positional) > 0 && futureSubcommands[positional[0]] {
+		out.Subcommand = positional[0]
+		out.SubArgs = positional[1:]
+		return out, nil
+	}
+	if len(positional) == 0 {
+		out.Path = "."
+		return out, nil
+	}
+	if len(positional) == 1 {
+		p := positional[0]
+		if p == "." || p == "./" || isDirectory(p) {
+			out.Path = p
+		} else {
+			isAbs := filepath.IsAbs(p) || (len(p) >= 2 && p[1] == ':')
+			if isAbs || (strings.Contains(p, string(os.PathSeparator)) && isDirectory(p)) {
+				out.Path = p
+			} else {
+				out.Prompt = p
+				out.Path = "."
+			}
+		}
+		return out, nil
+	}
+	first := positional[0]
+	if first == "." || first == "./" || isDirectory(first) || filepath.IsAbs(first) || (len(first) >= 2 && first[1] == ':') {
+		if isDirectory(first) || filepath.IsAbs(first) || strings.Contains(first, string(os.PathSeparator)) {
+			out.Path = first
+			out.Prompt = strings.Join(positional[1:], " ")
+			return out, nil
+		}
+	}
+	out.Prompt = strings.Join(positional, " ")
+	out.Path = "."
+	return out, nil
 }
 
 func printHelp() {
-    useColor := os.Getenv("NO_COLOR") == "" && os.Getenv("TERM") != "dumb"
-    accent := ""
-    reset := ""
-    if useColor {
-        accent = "\x1b[36m"
-        reset = "\x1b[0m"
-    }
-    fmt.Printf(`
+	useColor := os.Getenv("NO_COLOR") == "" && os.Getenv("TERM") != "dumb"
+	accent := ""
+	reset := ""
+	if useColor {
+		accent = "\x1b[36m"
+		reset = "\x1b[0m"
+	}
+	fmt.Printf(`
   %sHuginn%s — Agent Vault Intelligence
   CLI oficial de Huginn (interfaz de Agent Vault)
 
@@ -2766,64 +3183,64 @@ func printHelp() {
 }
 
 func printVersion() {
-    fmt.Printf("huginn %s\n", VERSION)
+	fmt.Printf("huginn %s\n", VERSION)
 }
 
 func huginnError(msg string, debug bool, err error) {
-    fmt.Fprintf(os.Stderr, "\n  Huginn error: %s\n\n", msg)
-    if err != nil && debug {
-        fmt.Fprintf(os.Stderr, "  detalle: %v\n\n", err)
-    }
-    if strings.Contains(strings.ToLower(msg), "vault") {
-        fmt.Fprintln(os.Stderr, "Check:")
-        fmt.Fprintln(os.Stderr, "  • Agent Vault is running")
-        fmt.Fprintln(os.Stderr, "  • Your configuration is correct")
-        fmt.Fprintln(os.Stderr, "  • The configured endpoint is reachable")
-        fmt.Fprintln(os.Stderr, "")
-        fmt.Fprintln(os.Stderr, "Usa --debug para más detalle.")
-    }
+	fmt.Fprintf(os.Stderr, "\n  Huginn error: %s\n\n", msg)
+	if err != nil && debug {
+		fmt.Fprintf(os.Stderr, "  detalle: %v\n\n", err)
+	}
+	if strings.Contains(strings.ToLower(msg), "vault") {
+		fmt.Fprintln(os.Stderr, "Check:")
+		fmt.Fprintln(os.Stderr, "  • Agent Vault is running")
+		fmt.Fprintln(os.Stderr, "  • Your configuration is correct")
+		fmt.Fprintln(os.Stderr, "  • The configured endpoint is reachable")
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "Usa --debug para más detalle.")
+	}
 }
 
 func runTUI(projectPath, prompt string) error {
-     abs, err := filepath.Abs(projectPath)
-     if err != nil {
-         abs = projectPath
-     }
-     if projectPath != "." {
-         if _, err := os.Stat(abs); err != nil {
-             return fmt.Errorf("ruta no encontrada: %s", abs)
-         }
-         if !isDirectory(abs) {
-             return fmt.Errorf("la ruta no es un directorio: %s", abs)
-         }
-     }
-     m := initialModelWithContext(abs, prompt)
-     p := tea.NewProgram(m)
-     if _, err := p.Run(); err != nil {
-         return err
-     }
-     return nil
- }
+	abs, err := filepath.Abs(projectPath)
+	if err != nil {
+		abs = projectPath
+	}
+	if projectPath != "." {
+		if _, err := os.Stat(abs); err != nil {
+			return fmt.Errorf("ruta no encontrada: %s", abs)
+		}
+		if !isDirectory(abs) {
+			return fmt.Errorf("la ruta no es un directorio: %s", abs)
+		}
+	}
+	m := initialModelWithContext(abs, prompt)
+	p := tea.NewProgram(m)
+	if _, err := p.Run(); err != nil {
+		return err
+	}
+	return nil
+}
 
 func runGraphTUI(projectPath string) error {
-    abs, err := filepath.Abs(projectPath)
-    if err != nil {
-        abs = projectPath
-    }
-    if _, err := os.Stat(abs); err != nil {
-        return fmt.Errorf("ruta no encontrada: %s", abs)
-    }
-    m := initialModel()
-    m.projectPath = abs
-    m.projectName = filepath.Base(abs)
-    m.pkgManager = detectPackageManager(abs)
-    m.vaultPath, m.vaultOK = resolveVaultPath()
-    m.mode = modeGraph
-    p := tea.NewProgram(m)
-    if _, err := p.Run(); err != nil {
-        return err
-    }
-    return nil
+	abs, err := filepath.Abs(projectPath)
+	if err != nil {
+		abs = projectPath
+	}
+	if _, err := os.Stat(abs); err != nil {
+		return fmt.Errorf("ruta no encontrada: %s", abs)
+	}
+	m := initialModel()
+	m.projectPath = abs
+	m.projectName = filepath.Base(abs)
+	m.pkgManager = detectPackageManager(abs)
+	m.vaultPath, m.vaultOK = resolveVaultPath()
+	m.mode = modeGraph
+	p := tea.NewProgram(m)
+	if _, err := p.Run(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func main() {
@@ -2867,7 +3284,7 @@ func main() {
 			os.Exit(0)
 		case "graph":
 			path := "."
-			if len(parsed.SubArgs) > 0 && (isDirectory(parsed.SubArgs[0]) || parsed.SubArgs[0]=="." ) {
+			if len(parsed.SubArgs) > 0 && (isDirectory(parsed.SubArgs[0]) || parsed.SubArgs[0] == ".") {
 				path = parsed.SubArgs[0]
 			}
 			if err := runGraphTUI(path); err != nil {

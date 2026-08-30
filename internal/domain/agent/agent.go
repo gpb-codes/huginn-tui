@@ -25,10 +25,13 @@ const (
 )
 
 type Agent struct {
-	Name   string
-	Role   string
-	Status Status
-	Pct    int
+	ID           string
+	Name         string
+	Role         string
+	Description  string
+	Capabilities []string
+	Status       Status
+	Pct          int
 }
 
 func (s Status) Label() string {
