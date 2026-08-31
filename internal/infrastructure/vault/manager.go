@@ -140,7 +140,16 @@ func (m *FilesystemManager) Initialize(_ context.Context, path string) (*domain.
 			}
 		}
 	}
-	// vault.json
+	// vault.json — idempotente: no regenerar ID si ya existe
+	vaultJSONPath := filepath.Join(huginnDir, "vault.json")
+	if _, err := os.Stat(vaultJSONPath); err == nil {
+		if existing, err2 := m.loadVault(abs); err2 == nil {
+			_ = m.updateState(abs)
+			_ = m.AddRecent(*existing)
+			m.current = existing
+			return existing, nil
+		}
+	}
 	v := &domain.Vault{
 		ID:        generateID(),
 		Name:      filepath.Base(abs),
