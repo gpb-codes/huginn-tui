@@ -1687,12 +1687,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 					return nm, c
 				}
-				if mentions := parseMentions(trim); len(mentions) > 0 {
-					now := time.Now().Format("15:04")
-					m.chatHistory = append(m.chatHistory, chatMsg{From: "You", Text: raw, IsUser: true, Time: now})
-					m.chatInputHistory = append(m.chatInputHistory, raw)
-					m.chatHistIdx = len(m.chatInputHistory)
-					var targets []string
+				// sin @ va directo al chat (no requiere mencionar agente)
+				now := time.Now().Format("15:04")
+				m.chatHistory = append(m.chatHistory, chatMsg{From: "You", Text: raw, IsUser: true, Time: now})
+				m.chatInputHistory = append(m.chatInputHistory, raw)
+				m.chatHistIdx = len(m.chatInputHistory)
+				mentions := parseMentions(trim)
+				var targets []string
+				if len(mentions) > 0 {
 					for _, mm := range mentions {
 						if mm == "All" {
 							targets = chatAgents[1:]
@@ -1702,29 +1704,32 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					if len(targets) == 0 {
 						targets = mentions
 					}
-					var cmds []tea.Cmd
-					for _, ag := range targets {
-						m.chatHistory = append(m.chatHistory, chatMsg{From: ag, Text: "… escribiendo (real) — llamando " + ag + "…", IsUser: false, Time: now})
-						cmds = append(cmds, callAgentCmd(ag, raw))
+				} else {
+					// sin mencion → usa agente seleccionado en el chat (Tab/1-6) o All por defecto
+					t := chatAgents[m.chatTarget]
+					if t == "All" {
+						targets = chatAgents[1:]
+					} else {
+						targets = []string{t}
 					}
-					m.mode = modeChat
-					m.input = ""
-					m.cursor = 0
-					m.chatSuggests = nil
-					m.chatScroll = 0
-					if len(cmds) > 0 {
-						return m, tea.Batch(cmds...)
-					}
-					return m, nil
 				}
-				m.mode = modeRunning
-				m.logs = []string{
-					"huginn      task received: " + m.input,
-					"huginn      repository analyzed",
-					"huginn      task decomposed into subtasks",
+				var cmds []tea.Cmd
+				for _, ag := range targets {
+					m.chatHistory = append(m.chatHistory, chatMsg{From: ag, Text: "… escribiendo (real) — llamando " + ag + "…", IsUser: false, Time: now})
+					cmds = append(cmds, callAgentCmd(ag, raw))
 				}
-				m.agents[0].status = statusWorking
-				return m, tick()
+				// lleva al chat y limpia el input — el chat ya muestra el input propio
+				m.chatInput = ""
+				m.chatCursor = 0
+				m.mode = modeChat
+				m.input = ""
+				m.cursor = 0
+				m.chatSuggests = nil
+				m.chatScroll = 0
+				if len(cmds) > 0 {
+					return m, tea.Batch(cmds...)
+				}
+				return m, nil
 			}
 			if m.mode == modeHelp || m.mode == modeAgents || m.mode == modeStatus || m.mode == modeMessage {
 				m.mode = modeInput
@@ -1963,7 +1968,7 @@ func (m model) View() tea.View {
 func viewInput(m model) string {
 	line := m.input
 	if line == "" {
-		line = lipgloss.NewStyle().Foreground(colMuted).Render("describe the task for huginn to orchestrate…  •  or @chatgpt @opencode @all para chatear")
+		line = lipgloss.NewStyle().Foreground(colMuted).Render("escribe para chatear — Enter para enviar  •  @chatgpt @opencode @all opcional")
 	} else {
 		cursorChar := " "
 		if m.cursor < len(line) {
