@@ -2777,6 +2777,41 @@ func viewChat(m model) string {
         }
         return string(runes) + "…"
     }
+    // wrap para respuesta completa responsive — rompe por palabras, respeta ancho leftW
+    wrapLines := func(s string, w int) []string {
+        if w <= 10 {
+            w = 10
+        }
+        var lines []string
+        words := strings.Fields(s)
+        if len(words) == 0 {
+            return []string{s}
+        }
+        cur := words[0]
+        for _, wd := range words[1:] {
+            if lipgloss.Width(cur+" "+wd) <= w {
+                cur += " " + wd
+            } else {
+                lines = append(lines, cur)
+                cur = wd
+                // palabra muy larga — corta duro
+                for lipgloss.Width(cur) > w {
+                    runes := []rune(cur)
+                    cut := ""
+                    for _, r := range runes {
+                        if lipgloss.Width(cut+string(r)) > w-1 {
+                            break
+                        }
+                        cut += string(r)
+                    }
+                    lines = append(lines, cut)
+                    cur = string([]rune(cur)[len([]rune(cut)):])
+                }
+            }
+        }
+        lines = append(lines, cur)
+        return lines
+    }
     row := func(left, right string) string {
         return "│" + pad(left, leftW) + "│" + pad(right, rightW) + "│"
     }
@@ -2848,18 +2883,37 @@ func viewChat(m model) string {
         leftLines = append(leftLines, "")
     }
     if len(m.chatHistory) > 0 {
-        hist := m.chatHistory
-        if len(hist) > 6 {
-            hist = hist[len(hist)-6:]
+        // muestra todas las que caben según altura disponible — responsive
+        // altura disponible para mensajes = totalRows - inputBox(3) - rightHeader(2) - padding
+        availRows := totalRows - 10
+        if availRows < 8 {
+            availRows = 8
         }
+        hist := m.chatHistory
+        // recolecta líneas envueltas y corta por availRows con scroll
+        var rendered []string
         for _, msg := range hist {
+            ts := ""
+            if msg.Time != "" {
+                ts = lipgloss.NewStyle().Foreground(colMuted).Render("["+msg.Time+"] ")
+            }
             if msg.IsUser {
-                line := lipgloss.NewStyle().Foreground(colAccent).Render("  ▶ You: ") + lipgloss.NewStyle().Foreground(colWhite).Render(truncate(msg.Text, leftW-12))
-                leftLines = append(leftLines, line)
+                prefix := ts + lipgloss.NewStyle().Foreground(colAccent).Render("▶ You: ")
+                pw := leftW - lipgloss.Width(prefix) - 4
+                if pw < 20 {
+                    pw = 20
+                }
+                for i, wl := range wrapLines(msg.Text, pw) {
+                    if i == 0 {
+                        rendered = append(rendered, prefix+lipgloss.NewStyle().Foreground(colWhite).Render(wl))
+                    } else {
+                        rendered = append(rendered, strings.Repeat(" ", lipgloss.Width(prefix))+lipgloss.NewStyle().Foreground(colWhite).Render(wl))
+                    }
+                }
             } else {
                 if strings.Contains(msg.Text, "… escribiendo") {
                     line := lipgloss.NewStyle().Foreground(colMuted).Render("    ◌ " + msg.From + " escribiendo…")
-                    leftLines = append(leftLines, line)
+                    rendered = append(rendered, line)
                 } else {
                     col := colText2
                     switch msg.From {
@@ -2876,12 +2930,36 @@ func viewChat(m model) string {
                     case "Hugin":
                         col = colWarn
                     }
-                    prefix := lipgloss.NewStyle().Bold(true).Foreground(col).Render("  " + msg.From + ": ")
-                    body := lipgloss.NewStyle().Foreground(colText2).Render(truncate(msg.Text, leftW-16-lipgloss.Width(prefix)))
-                    leftLines = append(leftLines, prefix+body)
+                    prefix := ts + lipgloss.NewStyle().Bold(true).Foreground(col).Render(" " + msg.From + ": ")
+                    pw := leftW - lipgloss.Width(prefix) - 4
+                    if pw < 20 {
+                        pw = 20
+                    }
+                    for i, wl := range wrapLines(msg.Text, pw) {
+                        if i == 0 {
+                            rendered = append(rendered, prefix+lipgloss.NewStyle().Foreground(colText2).Render(wl))
+                        } else {
+                            rendered = append(rendered, strings.Repeat(" ", lipgloss.Width(prefix))+lipgloss.NewStyle().Foreground(colText2).Render(wl))
+                        }
+                    }
                 }
             }
         }
+        // responsive: corta por altura disponible y respeta scroll (PgUp/PgDn)
+        if len(rendered) > availRows {
+            start := len(rendered) - availRows - m.chatScroll
+            if start < 0 {
+                start = 0
+            }
+            end := start + availRows
+            if end > len(rendered) {
+                end = len(rendered)
+            }
+            rendered = rendered[start:end]
+        } else if m.chatScroll > 0 && m.chatScroll < len(rendered) {
+            // si hay menos líneas que avail pero hay scroll, no hacer nada extra
+        }
+        leftLines = append(leftLines, rendered...)
         leftLines = append(leftLines, "")
     }
     inputBoxContent := lipgloss.NewStyle().Foreground(colAccent).Render("> ") + inputLine + "\n" + lipgloss.NewStyle().Foreground(colMuted).Render("  "+m.pkgManager+" · Enter enviar • Esc limpiar • Tab agente")
@@ -3224,8 +3302,8 @@ func dumpViews() {
 		{"chat", modeChat, func(m *model) {
 			m.chatHistory = []chatMsg{
 				{From: "Hugin", Text: "Chat iniciado. Menciona con @chatgpt @opencode @kilo @mimo @muse @all  •  o usa Tab/1-6", IsUser: false, Time: "20:24"},
-				{From: "You", Text: "analiza este proyecto", IsUser: true, Time: "20:24"},
-				{From: "ChatGPT", Text: "Detectado Go 1.25 + Bubble Tea v2. Proyecto limpio, 4 agentes listos.", IsUser: false, Time: "20:24"},
+				{From: "You", Text: "analiza este proyecto en detalle y explica la arquitectura hexagonal y el sistema de Vault", IsUser: true, Time: "20:24"},
+				{From: "ChatGPT", Text: "Detectado Go 1.25 + Bubble Tea v2. Proyecto limpio con 4 agentes (ChatGPT, OpenCode, Kilo y Muse). Arquitectura hexagonal: cmd/huginn → cli → application/orchestrator → domain/agent/vault → infrastructure. Vault .huginn con config.json, vault.json, memory.jsonl y user/*.md. Este texto largo debe envolverse automaticamente y adaptarse al ancho de la pantalla sin truncarse, mostrando la respuesta completa de forma fluida y premium, con scroll via PgUp/PgDn.", IsUser: false, Time: "20:25"},
 			}
 			m.chatInput = "explica el vault"
 			m.chatCursor = len(m.chatInput)
