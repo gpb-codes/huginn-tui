@@ -3,11 +3,11 @@ package components
 import "charm.land/lipgloss/v2"
 
 var mascotSabio = []string{
-	"  ,---.     ",
-	" / o o \\    ",
-	" |  ^  |  H ",
-	"  \\_-_/   ",
-	"  / H \\    ",
+	"   .--.      ",
+	"  / o o \\   ",
+	"  |  v  |   ",
+	"   \\ ^ /    ",
+	"   /_H_\\   ",
 }
 
 // RenderMascotSmall retorna ASCII del cuervo sabio para splash/help

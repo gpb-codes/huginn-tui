@@ -2074,6 +2074,10 @@ func viewRunning(m model) string {
 
 func viewHelp(m model) string {
 	var rows []string
+	// mascota cabecera — Sabio con libro
+	mascot := tuicomp.RenderMascotSmall()
+	mascotTitle := lipgloss.NewStyle().Foreground(colMuted).Italic(true).Render("Huginn vuela, recuerda, conecta mundos.  — La mirada que todo lo ve")
+	rows = append(rows, mascot, mascotTitle, "")
 	title := lipgloss.NewStyle().Bold(true).Foreground(colAccent).Render("HUGINN commands")
 	rows = append(rows, title, "")
 	for _, c := range commands {
@@ -2126,6 +2130,8 @@ func viewAgents(m model) string {
 
 func viewStatus(m model) string {
 	var rows []string
+	mascot := tuicomp.RenderMascotSmall()
+	rows = append(rows, mascot, "")
 	title := lipgloss.NewStyle().Bold(true).Foreground(colAccent).Render("HUGINN STATUS")
 	rows = append(rows, title, "")
 	rows = append(rows, fmt.Sprintf("%-14s %s", "version", VERSION))
@@ -2878,6 +2884,16 @@ func viewChat(m model) string {
     // híbrido opencode: left limpio solo chat history + input (sin dispatch duplicado)
     agents := []string{"ChatGPT", "OpenCode", "Kilo Code", "Mimo Code", "Muse Code"}
     leftLines := []string{""}
+    if len(m.chatHistory) <= 1 {
+        // splash mascota en vacio — Sabio
+        for _, l := range strings.Split(tuicomp.RenderMascotSmall(), "\n") {
+            if strings.TrimSpace(l) != "" {
+                leftLines = append(leftLines, "  "+l)
+            }
+        }
+        leftLines = append(leftLines, lipgloss.NewStyle().Foreground(colMuted).Italic(true).Render("  Huginn vuela, recuerda, conecta mundos."))
+        leftLines = append(leftLines, "")
+    }
     if lipgloss.Width(prompt) > 0 && len(m.chatHistory) <= 1 {
         leftLines = append(leftLines, lipgloss.NewStyle().Foreground(colMuted).Render("  › ")+lipgloss.NewStyle().Foreground(colText2).Italic(true).Render(truncate(prompt, leftW-8)))
         leftLines = append(leftLines, "")
