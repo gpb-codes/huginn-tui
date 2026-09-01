@@ -2840,22 +2840,17 @@ func viewChat(m model) string {
         inputLine = lipgloss.NewStyle().Foreground(colWhite).Render(before) + caret + lipgloss.NewStyle().Foreground(colWhite).Render(after)
     }
     _ = lipgloss.NewStyle().Foreground(colAccent).Render("> ") + inputLine
-    leftLines := []string{
-        "",
-        lipgloss.NewStyle().Bold(true).Foreground(colWhite).Render("  HUGINN"),
-        lipgloss.NewStyle().Foreground(colBorder).Render("  "+strings.Repeat("─", leftW-18)),
-        "",
-        lipgloss.NewStyle().Foreground(colAccent).Render("  > ") + lipgloss.NewStyle().Foreground(colWhite).Render(prompt),
-        "",
-        lipgloss.NewStyle().Foreground(colBorder).Render("  "+strings.Repeat("─", leftW-18)),
-        "",
-        lipgloss.NewStyle().Foreground(colSuccess).Render("  ● HUGINN") + lipgloss.NewStyle().Foreground(colMuted).Render("   Orchestrating"),
-        "",
+    // híbrido opencode: left limpio solo chat history + input (sin dispatch duplicado)
+    agents := []string{"ChatGPT", "OpenCode", "Kilo Code", "Mimo Code", "Muse Code"}
+    leftLines := []string{""}
+    if lipgloss.Width(prompt) > 0 && len(m.chatHistory) <= 1 {
+        leftLines = append(leftLines, lipgloss.NewStyle().Foreground(colMuted).Render("  › ")+lipgloss.NewStyle().Foreground(colText2).Italic(true).Render(truncate(prompt, leftW-8)))
+        leftLines = append(leftLines, "")
     }
     if len(m.chatHistory) > 0 {
         hist := m.chatHistory
-        if len(hist) > 5 {
-            hist = hist[len(hist)-5:]
+        if len(hist) > 6 {
+            hist = hist[len(hist)-6:]
         }
         for _, msg := range hist {
             if msg.IsUser {
@@ -2889,59 +2884,7 @@ func viewChat(m model) string {
         }
         leftLines = append(leftLines, "")
     }
-    dispatchRows := []string{
-        "",
-        lipgloss.NewStyle().Bold(true).Foreground(colAccent).Render("◆ AGENT DISPATCH"),
-        "",
-    }
-    agents := []string{"ChatGPT", "OpenCode", "Kilo Code", "Mimo Code", "Muse Code"}
-    agentTasks := map[string]string{
-        "ChatGPT": "Architecture analysis",
-        "OpenCode": "Backend implementation",
-        "Kilo Code": "Edge-case analysis",
-        "Mimo Code": "Code review",
-        "Muse Code": "Documentation",
-    }
-    for _, an := range agents {
-        st, _ := agentStatus(an)
-        icon := "◌"
-        if st=="READY" {
-            icon = "✓"
-        }
-        if st=="WORKING" {
-            icon = "●"
-        }
-        var iconCol color.Color = colMuted
-        if icon=="✓" {
-            iconCol = colSuccess
-        }
-        if icon=="●" {
-            iconCol = colAccent
-        }
-        namePadded := pad(an, 11)
-        taskPadded := pad(agentTasks[an], leftW-28)
-        if lipgloss.Width(taskPadded) > leftW-28 {
-            taskPadded = truncate(agentTasks[an], leftW-28)
-        }
-        line2 := lipgloss.NewStyle().Foreground(colText2).Render(namePadded) + lipgloss.NewStyle().Foreground(colMuted).Render(" → ") + lipgloss.NewStyle().Foreground(colText2).Render(taskPadded) + " " + lipgloss.NewStyle().Foreground(iconCol).Render(icon)
-        dispatchRows = append(dispatchRows, line2)
-    }
-    dispatchBoxContent := strings.Join(dispatchRows, "\n")
-    dispatchBox := lipgloss.NewStyle().BorderStyle(lipgloss.RoundedBorder()).BorderForeground(colBorder).Padding(0, 1).Width(leftW-4).Render(dispatchBoxContent)
-    for _, line := range strings.Split(dispatchBox, "\n") {
-        leftLines = append(leftLines, line)
-    }
-    leftLines = append(leftLines, "")
-    leftLines = append(leftLines, lipgloss.NewStyle().Bold(true).Foreground(colAccent).Render("▣ BACKGROUND TASKS"))
-    leftLines = append(leftLines, lipgloss.NewStyle().Foreground(colBorder).Render("  "+strings.Repeat("─", leftW-18)))
-    bgTasks := []string{
-        lipgloss.NewStyle().Foreground(colSuccess).Render("  [✓]") + lipgloss.NewStyle().Foreground(colText2).Render(" Research authentication patterns") + lipgloss.NewStyle().Foreground(colMuted).Render("  2m 14s"),
-        lipgloss.NewStyle().Foreground(colAccent).Render("  [●]") + lipgloss.NewStyle().Foreground(colText2).Render(" Analyze existing architecture") + lipgloss.NewStyle().Foreground(colMuted).Render("  34s"),
-        lipgloss.NewStyle().Foreground(colMuted).Render("  [◌]") + lipgloss.NewStyle().Foreground(colMuted).Render(" Review security implications") + lipgloss.NewStyle().Foreground(colMuted).Render("  queued"),
-    }
-    leftLines = append(leftLines, bgTasks...)
-    leftLines = append(leftLines, "")
-    inputBoxContent := lipgloss.NewStyle().Foreground(colAccent).Render("> ") + inputLine + "\n" + lipgloss.NewStyle().Foreground(colMuted).Render("  Build · Nemotron 3.5  •  Enter enviar • Esc limpiar")
+    inputBoxContent := lipgloss.NewStyle().Foreground(colAccent).Render("> ") + inputLine + "\n" + lipgloss.NewStyle().Foreground(colMuted).Render("  "+m.pkgManager+" · Enter enviar • Esc limpiar • Tab agente")
     inputBox := lipgloss.NewStyle().BorderStyle(lipgloss.RoundedBorder()).BorderForeground(colAccent).Background(colPanel2).Padding(0, 1).Width(leftW-4).Render(inputBoxContent)
     for _, line := range strings.Split(inputBox, "\n") {
         leftLines = append(leftLines, line)
