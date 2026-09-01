@@ -38,23 +38,23 @@ func pasteFromClipboard() string {
 	return clipboardFallback
 }
 
-// ---------- palette ----------
+// ---------- palette — Obsidian Glass (DESIGN.md) ----------
 var (
-	colPanel   = lipgloss.Color("#111317")
-	colPanel2  = lipgloss.Color("#151A21")
-	colBorder  = lipgloss.Color("#1c232e")
-	colBorder2 = lipgloss.Color("#253545")
-	colText    = lipgloss.Color("#e7ecf2")
-	colText2   = lipgloss.Color("#c9d1d9")
-	colMuted   = lipgloss.Color("#5c6672")
-	colMuted2  = lipgloss.Color("#8b949e")
-	colAccent  = lipgloss.Color("#33d9f2")
-	colPurple  = lipgloss.Color("#9061f9")
-	colWhite   = lipgloss.Color("#f4f6f8")
-	colSuccess = lipgloss.Color("#2fd67a")
-	colRaven   = lipgloss.Color("#5f5f87")
-	colWarn    = lipgloss.Color("#e8a83e")
-	colError   = lipgloss.Color("#ff5555")
+	colPanel   = lipgloss.Color("#111827")
+	colPanel2  = lipgloss.Color("#151e2f")
+	colBorder  = lipgloss.Color("#1f2a3a")
+	colBorder2 = lipgloss.Color("#263449")
+	colText    = lipgloss.Color("#e6edf3")
+	colText2   = lipgloss.Color("#9aa8b8")
+	colMuted   = lipgloss.Color("#5b6b82")
+	colMuted2  = lipgloss.Color("#9aa8b8")
+	colAccent  = lipgloss.Color("#22d3ee")
+	colPurple  = lipgloss.Color("#8b5cf6")
+	colWhite   = lipgloss.Color("#e6edf3")
+	colSuccess = lipgloss.Color("#34d399")
+	colRaven   = lipgloss.Color("#5b6b82")
+	colWarn    = lipgloss.Color("#fbbf24")
+	colError   = lipgloss.Color("#f87171")
 )
 
 // ---------- agents ----------
