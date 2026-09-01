@@ -159,6 +159,29 @@ Todas las capturas son **renders reales de Go** — `viewChat` `viewVaultWizard`
 
 </details>
 
+### Mascota
+
+<p align="center">
+  <img src="./assets/mascot-small.png" width="100%" alt="Huginn mascota — La mirada que todo lo ve" />
+  <br/>
+  <sub><b>Huginn — La mirada que todo lo ve</b> · 8 personalidades pixel art · <i>Huginn vuela, recuerda, conecta mundos</i></sub>
+</p>
+
+Huginn no es solo un TUI — es un cuervo que te acompaña. Cada variante representa un rol del sistema:
+
+| Rol | Personalidad | Descripcion | Uso en HUGINN |
+|-----|--------------|-------------|---------------|
+| Asistente Inteligente | proactivo | Con laptop, te ayuda a encontrar respuestas y automatizar tareas | Chat por defecto (`@all`) |
+| Guía y Explicador | didáctico | Señala y explica paso a paso | `/help` y onboarding |
+| Guardián del Conocimiento | archivista | Con pergamino, guarda y conecta ideas | Vault `memory/` + Knowledge Graph |
+| Observador | vigilante | Ojo en burbuja, observa tu entorno | Context Agent + file watcher |
+| Curioso | inquieto | Con `?`, busca nuevas perspectivas | Research Agent + Perplexity |
+| Paciente | sereno | Con reloj de arena, respeta tu ritmo | Planner + onboarding paso a paso |
+| Leal | compañero | Con corazón, protege tu información | Memory Agent + Vault sync |
+| Sabio | erudito | Con libro `H`, conecta pasado/presente/futuro | Documentation + Knowledge |
+
+Icono `assets/mascot-icon.png` (512x512) para CLI, favicon y `splash` TUI. Original `assets/mascot.png` 1536x1024 pixel art.
+
 ---
 
 ### Agentes
