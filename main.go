@@ -14,27 +14,47 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+
+	"github.com/atotto/clipboard"
+
+	vaultpkg "huginn/internal/domain/vault"
+	infravault "huginn/internal/infrastructure/vault"
+	tuicomp "huginn/internal/tui/components"
 )
 
 const VERSION = "v0.2.0"
 
-// ---------- palette ----------
+// ---------- clipboard fallback ----------
+var clipboardFallback string
+
+func copyToClipboard(s string) {
+	clipboardFallback = s
+	_ = clipboard.WriteAll(s)
+}
+func pasteFromClipboard() string {
+	if t, err := clipboard.ReadAll(); err == nil && t != "" {
+		return t
+	}
+	return clipboardFallback
+}
+
+// ---------- palette — Obsidian Glass (DESIGN.md) ----------
 var (
-	colPanel  = lipgloss.Color("#111317")
-	colPanel2 = lipgloss.Color("#151A21")
-	colBorder = lipgloss.Color("#1c232e")
-	colBorder2 = lipgloss.Color("#253545")
-	colText   = lipgloss.Color("#e7ecf2")
-	colText2  = lipgloss.Color("#c9d1d9")
-	colMuted  = lipgloss.Color("#5c6672")
-	colMuted2 = lipgloss.Color("#8b949e")
-	colAccent = lipgloss.Color("#33d9f2")
-	colPurple = lipgloss.Color("#9061f9")
-	colWhite  = lipgloss.Color("#f4f6f8")
-	colSuccess = lipgloss.Color("#2fd67a")
-	colRaven  = lipgloss.Color("#5f5f87")
-	colWarn   = lipgloss.Color("#e8a83e")
-	colError  = lipgloss.Color("#ff5555")
+	colPanel   = lipgloss.Color("#111827")
+	colPanel2  = lipgloss.Color("#151e2f")
+	colBorder  = lipgloss.Color("#1f2a3a")
+	colBorder2 = lipgloss.Color("#263449")
+	colText    = lipgloss.Color("#e6edf3")
+	colText2   = lipgloss.Color("#9aa8b8")
+	colMuted   = lipgloss.Color("#5b6b82")
+	colMuted2  = lipgloss.Color("#9aa8b8")
+	colAccent  = lipgloss.Color("#22d3ee")
+	colPurple  = lipgloss.Color("#8b5cf6")
+	colWhite   = lipgloss.Color("#e6edf3")
+	colSuccess = lipgloss.Color("#34d399")
+	colRaven   = lipgloss.Color("#5b6b82")
+	colWarn    = lipgloss.Color("#fbbf24")
+	colError   = lipgloss.Color("#f87171")
 )
 
 // ---------- agents ----------
@@ -271,7 +291,13 @@ var peerServers = []peerServer{
 }
 
 var localPeerID = "peer_LOCAL_7F3A"
-var localHostname = func() string { h, _ := os.Hostname(); if h == "" { return "huginn-local" }; return h }()
+var localHostname = func() string {
+	h, _ := os.Hostname()
+	if h == "" {
+		return "huginn-local"
+	}
+	return h
+}()
 
 // ---------- model ----------
 type mode int
@@ -287,30 +313,31 @@ const (
 	modeSettings
 	modeServers
 	modeGraph
+	modeVault
 )
 
 // chat con todos los agentes
 type chatMsg struct {
-	From    string
-	Text    string
-	IsUser  bool
-	Time    string
+	From   string
+	Text   string
+	IsUser bool
+	Time   string
 }
 
 var chatAgents = []string{"All", "ChatGPT", "OpenCode", "Mimo Code", "Kilo Code", "Muse Code"}
 
 // menciones nativas estilo opencode/kilo: @chatgpt @opencode @kilo @mimo @muse @all
 var mentionMap = map[string]string{
-	"@all":       "All",
-	"@chatgpt":   "ChatGPT",
-	"@opencode":  "OpenCode",
-	"@kilo":      "Kilo Code",
-	"@kilocode":  "Kilo Code",
-	"@mimo":      "Mimo Code",
-	"@mimo_code": "Mimo Code",
-	"@mimocode":  "Mimo Code",
-	"@muse":      "Muse Code",
-	"@claude":    "Muse Code",
+	"@all":         "All",
+	"@chatgpt":     "ChatGPT",
+	"@opencode":    "OpenCode",
+	"@kilo":        "Kilo Code",
+	"@kilocode":    "Kilo Code",
+	"@mimo":        "Mimo Code",
+	"@mimo_code":   "Mimo Code",
+	"@mimocode":    "Mimo Code",
+	"@muse":        "Muse Code",
+	"@claude":      "Muse Code",
 	"@claudecodes": "Muse Code",
 }
 
@@ -466,25 +493,25 @@ func applyMainAutocomplete(m *model) bool {
 }
 
 type model struct {
-	input      string
-	cursor     int
-	width      int
-	height     int
-	mode       mode
-	agents     []agent
-	logs       []string
-	quitting   bool
-	msgTitle   string
-	msgBody    string
-	chatTarget int
-	chatInput  string
-	chatCursor int
-	chatHistory []chatMsg
-	chatSuggests []string
-	chatSuggestIdx int
+	input            string
+	cursor           int
+	width            int
+	height           int
+	mode             mode
+	agents           []agent
+	logs             []string
+	quitting         bool
+	msgTitle         string
+	msgBody          string
+	chatTarget       int
+	chatInput        string
+	chatCursor       int
+	chatHistory      []chatMsg
+	chatSuggests     []string
+	chatSuggestIdx   int
 	chatInputHistory []string
-	chatHistIdx int
-	chatScroll int
+	chatHistIdx      int
+	chatScroll       int
 	// settings
 	settingsCursor   int
 	settingsExpanded []bool
@@ -500,6 +527,66 @@ type model struct {
 	vaultPath   string
 	vaultOK     bool
 	pkgManager  string
+	// graph
+	graphCursor int
+	// vault wizard
+	vaultWizardStep   int
+	vaultWizardInput  string
+	vaultWizardCursor int
+	vaultWizardData   vaultConfig
+}
+
+type vaultConfig struct {
+	Path       string
+	Name       string
+	Purpose    string // personal, equipo, proyecto
+	Sync       string // Auto, Manual, Off
+	Indexing   string // On, Off
+	Embeddings string // OpenAI, Local, Ollama, Disabled
+	VaultType  string // knowledge, memory, mixed
+}
+
+var vaultWizardQuestions = []struct {
+	Title   string
+	Key     string
+	Prompt  string
+	Options []string
+	Default string
+}{
+	{"Vault path", "Path", "¿Dónde guardar el vault?", nil, "~/agent-vault"},
+	{"Vault name", "Name", "Nombre del vault", nil, "agent-vault"},
+	{"Propósito", "Purpose", "¿Para qué usarás el vault?", []string{"personal", "equipo", "proyecto"}, "proyecto"},
+	{"Tipo de vault", "VaultType", "¿Qué guardará principalmente?", []string{"knowledge", "memory", "mixed"}, "mixed"},
+	{"Sync", "Sync", "¿Sincronización entre PCs?", []string{"Auto", "Manual", "Off"}, "Auto"},
+	{"Indexing", "Indexing", "¿Indexado automático de archivos?", []string{"On", "Off"}, "On"},
+	{"Embeddings", "Embeddings", "¿Proveedor de embeddings?", []string{"OpenAI", "Local", "Ollama", "Disabled"}, "Local"},
+}
+
+var graphNodes = []struct {
+	Label string
+	Type  string
+	Desc  string
+	Color color.Color
+}{
+	{"Agent", "agent", "Coordinador principal", lipgloss.Color("#9061f9")},
+	{"Memory", "memory", "Memoria persistente 4.2k tokens", lipgloss.Color("#33d9f2")},
+	{"Context", "context", "Contexto activo del proyecto", lipgloss.Color("#e8a83e")},
+	{"Project", "project", "huginn-tui • Go/Bubbletea", lipgloss.Color("#2fd67a")},
+	{"embeddings", "file", "src/memory/embeddings.db", lipgloss.Color("#8b949e")},
+	{"session", "file", "sessions/sess_01JABC.json", lipgloss.Color("#8b949e")},
+	{"Task", "task", "Implement auth with JWT", lipgloss.Color("#e8a83e")},
+	{"Knowledge", "knowledge", "Grafo 23 relaciones", lipgloss.Color("#4a8af4")},
+	{"recent.json", "file", "Memoria reciente", lipgloss.Color("#8b949e")},
+	{"graph.json", "file", "Grafo serializado", lipgloss.Color("#4a8af4")},
+	{"Huginn", "agent", "Orquestador local", lipgloss.Color("#9061f9")},
+	{"vault", "vault", "~/agent-vault • Synced", lipgloss.Color("#2fd67a")},
+	{"index.ts", "file", "src/knowledge/index.ts", lipgloss.Color("#33d9f2")},
+	{"config.yaml", "config", "Vault config", lipgloss.Color("#8b949e")},
+	{"context.md", "context", "Contexto markdown", lipgloss.Color("#e8a83e")},
+	{"reviewer", "agent", "Code review", lipgloss.Color("#e8a83e")},
+	{"architect", "agent", "System design", lipgloss.Color("#9061f9")},
+	{"developer", "agent", "Implementation", lipgloss.Color("#2fd67a")},
+	{"researcher", "agent", "Research", lipgloss.Color("#4a8af4")},
 }
 
 func initialModel() model {
@@ -592,15 +679,27 @@ func handleCommand(raw string, m model) (model, tea.Cmd, bool) {
 		return m, nil, false
 	}
 	if cmd == "/vault" || cmd == "vault" {
-		err := openVault()
-		if err != nil {
-			m.mode = modeMessage
-			m.msgTitle = "Vault"
-			m.msgBody = fmt.Sprintf("Failed to open vault: %v", err)
-		} else {
-			m.mode = modeMessage
-			m.msgTitle = "Vault"
-			m.msgBody = "Vault opened in file explorer."
+		// wizard interactivo — no abre directo, pregunta paso a paso
+		m.mode = modeVault
+		m.vaultWizardStep = 0
+		m.vaultWizardCursor = 0
+		m.vaultWizardData = vaultConfig{
+			Path:       "~/agent-vault",
+			Name:       "agent-vault",
+			Purpose:    "proyecto",
+			VaultType:  "mixed",
+			Sync:       "Auto",
+			Indexing:   "On",
+			Embeddings: "Local",
+		}
+		// si ya hay vault detectado, precarga
+		if m.vaultPath != "" {
+			m.vaultWizardData.Path = m.vaultPath
+			m.vaultWizardData.Name = filepath.Base(m.vaultPath)
+		}
+		m.vaultWizardInput = vaultWizardQuestions[0].Default
+		if m.vaultWizardData.Path != "" {
+			m.vaultWizardInput = m.vaultWizardData.Path
 		}
 		m.input = ""
 		m.cursor = 0
@@ -727,14 +826,23 @@ type agentReplyMsg struct {
 
 func callAgentCmd(agent, prompt string) tea.Cmd {
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-		defer cancel()
+		// fallback inmediato si opencode no está instalado — usa mock local (ChatGPT siempre mock)
+		if agent == "ChatGPT" {
+			time.Sleep(500 * time.Millisecond)
+			return agentReplyMsg{Agent: agent, Text: mockReply(agent, prompt)}
+		}
 		opencodeBin := "opencode"
 		if runtime.GOOS == "windows" {
 			if _, err := exec.LookPath("opencode.cmd"); err == nil {
 				opencodeBin = "opencode.cmd"
 			}
 		}
+		if !commandAvailable(opencodeBin) && !commandAvailable("opencode") && !commandAvailable("opencode.cmd") {
+			time.Sleep(400 * time.Millisecond)
+			return agentReplyMsg{Agent: agent, Text: mockReply(agent, prompt)}
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+		defer cancel()
 		var model string
 		switch agent {
 		case "ChatGPT":
@@ -1314,7 +1422,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					lspServers[m.serversCursor].Status = "Running"
 					m.serversMsg = fmt.Sprintf("↻ Reiniciando LSP %s …", lspServers[m.serversCursor].ServerName)
 				case 2:
-					peerServers[m.serversCursor].Latency = fmt.Sprintf("%dms", 15+ m.serversCursor*7)
+					peerServers[m.serversCursor].Latency = fmt.Sprintf("%dms", 15+m.serversCursor*7)
 					m.serversMsg = "↻ Ping a peers actualizado"
 				}
 				if m.serversTab == 0 {
@@ -1349,6 +1457,215 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 		}
+		// ---------- VAULT WIZARD ----------
+		if m.mode == modeVault {
+			q := vaultWizardQuestions[m.vaultWizardStep]
+			hasOptions := len(q.Options) > 0
+			switch msg.String() {
+			case "ctrl+c":
+				m.quitting = true
+				return m, tea.Quit
+			case "esc":
+				if m.vaultWizardStep > 0 {
+					m.vaultWizardStep--
+					nq := vaultWizardQuestions[m.vaultWizardStep]
+					// restaura valor previo
+					switch nq.Key {
+					case "Path":
+						m.vaultWizardInput = m.vaultWizardData.Path
+					case "Name":
+						m.vaultWizardInput = m.vaultWizardData.Name
+					case "Purpose":
+						m.vaultWizardInput = m.vaultWizardData.Purpose
+					case "VaultType":
+						m.vaultWizardInput = m.vaultWizardData.VaultType
+					case "Sync":
+						m.vaultWizardInput = m.vaultWizardData.Sync
+					case "Indexing":
+						m.vaultWizardInput = m.vaultWizardData.Indexing
+					case "Embeddings":
+						m.vaultWizardInput = m.vaultWizardData.Embeddings
+					default:
+						m.vaultWizardInput = nq.Default
+					}
+					m.vaultWizardCursor = 0
+				} else {
+					m.mode = modeInput
+					m.input = ""
+					m.cursor = 0
+				}
+				return m, nil
+			case "up", "k":
+				if hasOptions {
+					m.vaultWizardCursor = (m.vaultWizardCursor - 1 + len(q.Options)) % len(q.Options)
+					m.vaultWizardInput = q.Options[m.vaultWizardCursor]
+				}
+				return m, nil
+			case "down", "j":
+				if hasOptions {
+					m.vaultWizardCursor = (m.vaultWizardCursor + 1) % len(q.Options)
+					m.vaultWizardInput = q.Options[m.vaultWizardCursor]
+				}
+				return m, nil
+			case "enter":
+				val := strings.TrimSpace(m.vaultWizardInput)
+				if val == "" {
+					val = q.Default
+				}
+				switch q.Key {
+				case "Path":
+					m.vaultWizardData.Path = val
+				case "Name":
+					m.vaultWizardData.Name = val
+				case "Purpose":
+					m.vaultWizardData.Purpose = val
+				case "VaultType":
+					m.vaultWizardData.VaultType = val
+				case "Sync":
+					m.vaultWizardData.Sync = val
+				case "Indexing":
+					m.vaultWizardData.Indexing = val
+				case "Embeddings":
+					m.vaultWizardData.Embeddings = val
+				}
+				if m.vaultWizardStep < len(vaultWizardQuestions)-1 {
+					m.vaultWizardStep++
+					nq := vaultWizardQuestions[m.vaultWizardStep]
+					// precarga siguiente
+					switch nq.Key {
+					case "Path":
+						m.vaultWizardInput = m.vaultWizardData.Path
+					case "Name":
+						m.vaultWizardInput = m.vaultWizardData.Name
+					case "Purpose":
+						m.vaultWizardInput = m.vaultWizardData.Purpose
+					case "VaultType":
+						m.vaultWizardInput = m.vaultWizardData.VaultType
+					case "Sync":
+						m.vaultWizardInput = m.vaultWizardData.Sync
+					case "Indexing":
+						m.vaultWizardInput = m.vaultWizardData.Indexing
+					case "Embeddings":
+						m.vaultWizardInput = m.vaultWizardData.Embeddings
+					default:
+						m.vaultWizardInput = nq.Default
+					}
+					// set cursor to current value index
+					m.vaultWizardCursor = 0
+					if len(nq.Options) > 0 {
+						for i, opt := range nq.Options {
+							if strings.EqualFold(opt, m.vaultWizardInput) {
+								m.vaultWizardCursor = i
+								break
+							}
+						}
+					}
+				} else {
+					// wizard completo — usa VaultManager para materializar .huginn en disco
+					vaultPath := m.vaultWizardData.Path
+					if strings.HasPrefix(vaultPath, "~/") {
+						home, _ := os.UserHomeDir()
+						vaultPath = filepath.Join(home, strings.TrimPrefix(vaultPath, "~/"))
+					}
+					mgr := infravault.NewFilesystemManager()
+					var v *vaultpkg.Vault
+					var err error
+					if _, err2 := os.Stat(vaultPath); os.IsNotExist(err2) {
+						parent := filepath.Dir(vaultPath)
+						name := filepath.Base(vaultPath)
+						_ = os.MkdirAll(parent, 0755)
+						v, err = mgr.Create(context.Background(), parent, name)
+					} else {
+						if mgr.IsInitialized(vaultPath) {
+							v, err = mgr.Open(context.Background(), vaultPath)
+						} else {
+							v, err = mgr.Initialize(context.Background(), vaultPath)
+						}
+					}
+					if err != nil {
+						m.mode = modeMessage
+						m.msgTitle = "Vault error"
+						m.msgBody = fmt.Sprintf("No se pudo crear vault: %v\n\nPath: %s", err, vaultPath)
+						m.vaultWizardStep = 0
+						m.vaultWizardInput = ""
+						return m, nil
+					}
+					m.vaultPath = v.Path
+					m.vaultOK = true
+					m.projectPath = v.Path
+					m.projectName = v.Name
+					settingsValues["Vault connection"] = "Connected"
+					settingsValues["Default vault"] = v.Path
+					settingsValues["Sync"] = m.vaultWizardData.Sync
+					settingsValues["Indexing"] = m.vaultWizardData.Indexing
+					settingsValues["Embeddings"] = m.vaultWizardData.Embeddings
+					m.mode = modeMessage
+					m.msgTitle = "Vault configurado"
+					m.msgBody = fmt.Sprintf("Vault: %s\nName: %s\nID: %s\nPropósito: %s\nTipo: %s\nSync: %s\nIndexing: %s\nEmbeddings: %s\n\n✓ .huginn/config.json\n✓ .huginn/vault.json\n✓ .huginn/agents, memory, plugins, cache, logs, runtime\n✓ notes/projects/agents/memory/attachments\n\nVault listo. Presiona 'o' para abrir en explorer.", v.Path, v.Name, v.ID, m.vaultWizardData.Purpose, m.vaultWizardData.VaultType, m.vaultWizardData.Sync, m.vaultWizardData.Indexing, m.vaultWizardData.Embeddings)
+					m.vaultWizardStep = 0
+					m.vaultWizardInput = ""
+				}
+				return m, nil
+			case "o", "O":
+				_ = openVault()
+				m.msgTitle = "Vault"
+				m.msgBody = "Vault abierto en explorer: " + m.vaultWizardData.Path
+				m.mode = modeMessage
+				return m, nil
+			case "backspace":
+				if !hasOptions && len(m.vaultWizardInput) > 0 {
+					m.vaultWizardInput = m.vaultWizardInput[:len(m.vaultWizardInput)-1]
+				}
+				return m, nil
+			case "space":
+				if !hasOptions {
+					m.vaultWizardInput += " "
+				}
+				return m, nil
+			default:
+				s := msg.String()
+				if len(s) == 1 && !hasOptions {
+					m.vaultWizardInput += s
+				}
+				return m, nil
+			}
+		}
+		// ---------- GRAPH INTERACTIVO ----------
+		if m.mode == modeGraph {
+			switch msg.String() {
+			case "ctrl+c":
+				m.quitting = true
+				return m, tea.Quit
+			case "esc", "q", "Q":
+				m.mode = modeInput
+				m.input = ""
+				m.cursor = 0
+				return m, nil
+			case "up", "k":
+				m.graphCursor = (m.graphCursor - 1 + len(graphNodes)) % len(graphNodes)
+				return m, nil
+			case "down", "j":
+				m.graphCursor = (m.graphCursor + 1) % len(graphNodes)
+				return m, nil
+			case "left", "h":
+				m.graphCursor = (m.graphCursor - 3 + len(graphNodes)) % len(graphNodes)
+				return m, nil
+			case "right", "l":
+				m.graphCursor = (m.graphCursor + 3) % len(graphNodes)
+				return m, nil
+			case "enter", " ":
+				n := graphNodes[m.graphCursor]
+				m.mode = modeMessage
+				m.msgTitle = n.Label
+				m.msgBody = fmt.Sprintf("%s (%s)\n\n%s\n\nConexiones: %d\n\nPresiona esc para volver al grafo.", n.Label, n.Type, n.Desc, 2+m.graphCursor%4)
+				return m, nil
+			case "r", "R":
+				m.graphCursor = 0
+				return m, nil
+			default:
+				return m, nil
+			}
+		}
 		switch msg.String() {
 		case "ctrl+c":
 			m.quitting = true
@@ -1370,12 +1687,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 					return nm, c
 				}
-				if mentions := parseMentions(trim); len(mentions) > 0 {
-					now := time.Now().Format("15:04")
-					m.chatHistory = append(m.chatHistory, chatMsg{From: "You", Text: raw, IsUser: true, Time: now})
-					m.chatInputHistory = append(m.chatInputHistory, raw)
-					m.chatHistIdx = len(m.chatInputHistory)
-					var targets []string
+				// sin @ va directo al chat (no requiere mencionar agente)
+				now := time.Now().Format("15:04")
+				m.chatHistory = append(m.chatHistory, chatMsg{From: "You", Text: raw, IsUser: true, Time: now})
+				m.chatInputHistory = append(m.chatInputHistory, raw)
+				m.chatHistIdx = len(m.chatInputHistory)
+				mentions := parseMentions(trim)
+				var targets []string
+				if len(mentions) > 0 {
 					for _, mm := range mentions {
 						if mm == "All" {
 							targets = chatAgents[1:]
@@ -1385,29 +1704,32 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					if len(targets) == 0 {
 						targets = mentions
 					}
-					var cmds []tea.Cmd
-					for _, ag := range targets {
-						m.chatHistory = append(m.chatHistory, chatMsg{From: ag, Text: "… escribiendo (real) — llamando " + ag + "…", IsUser: false, Time: now})
-						cmds = append(cmds, callAgentCmd(ag, raw))
+				} else {
+					// sin mencion → usa agente seleccionado en el chat (Tab/1-6) o All por defecto
+					t := chatAgents[m.chatTarget]
+					if t == "All" {
+						targets = chatAgents[1:]
+					} else {
+						targets = []string{t}
 					}
-					m.mode = modeChat
-					m.input = ""
-					m.cursor = 0
-					m.chatSuggests = nil
-					m.chatScroll = 0
-					if len(cmds) > 0 {
-						return m, tea.Batch(cmds...)
-					}
-					return m, nil
 				}
-				m.mode = modeRunning
-				m.logs = []string{
-					"huginn      task received: " + m.input,
-					"huginn      repository analyzed",
-					"huginn      task decomposed into subtasks",
+				var cmds []tea.Cmd
+				for _, ag := range targets {
+					m.chatHistory = append(m.chatHistory, chatMsg{From: ag, Text: "… escribiendo (real) — llamando " + ag + "…", IsUser: false, Time: now})
+					cmds = append(cmds, callAgentCmd(ag, raw))
 				}
-				m.agents[0].status = statusWorking
-				return m, tick()
+				// lleva al chat y limpia el input — el chat ya muestra el input propio
+				m.chatInput = ""
+				m.chatCursor = 0
+				m.mode = modeChat
+				m.input = ""
+				m.cursor = 0
+				m.chatSuggests = nil
+				m.chatScroll = 0
+				if len(cmds) > 0 {
+					return m, tea.Batch(cmds...)
+				}
+				return m, nil
 			}
 			if m.mode == modeHelp || m.mode == modeAgents || m.mode == modeStatus || m.mode == modeMessage {
 				m.mode = modeInput
@@ -1523,7 +1845,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			for i := range mcpServers {
 				if mcpServers[i].Status == "Connecting" {
 					mcpServers[i].Status = "Connected"
-					mcpServers[i].Latency = fmt.Sprintf("%dms", 8+ (i*5)%40)
+					mcpServers[i].Latency = fmt.Sprintf("%dms", 8+(i*5)%40)
 					if mcpServers[i].Name == "notion" && mcpServers[i].ErrorMsg != "" {
 						// sigue needing auth hasta que se configure, lo dejamos en Needs auth si tenía error
 						// pero para demo, lo conectamos
@@ -1597,61 +1919,15 @@ func (m model) View() tea.View {
 		return tea.NewView("")
 	}
 
-	hugRows := []string{
-		"██  ██  ██  ██   █████",
-		"██  ██  ██  ██  ██    ",
-		"██████  ██  ██  ██ ███",
-		"██  ██  ██  ██  ██  ██",
-		"██  ██   ████    █████",
-	}
-	innRows := []string{
-		"████  ██  ██  ██  ██",
-		" ██   ███ ██  ███ ██",
-		" ██   ██ ███  ██ ███",
-		" ██   ██  ██  ██  ██",
-		"████  ██  ██  ██  ██",
-	}
-	var bigRows []string
-	for i := range hugRows {
-		h := lipgloss.NewStyle().Bold(true).Foreground(colPurple).Render(hugRows[i])
-		n := lipgloss.NewStyle().Bold(true).Foreground(colWhite).Render(innRows[i])
-		gap := lipgloss.NewStyle().Foreground(colBorder).Render("   ")
-		bigRows = append(bigRows, h+gap+n)
-	}
-	bigHuginn := strings.Join(bigRows, "\n")
-
-	var wordmark string
-	ravensTop := lipgloss.NewStyle().Foreground(colRaven).Width(76).Align(lipgloss.Center).Render(" 𓅃         𓅃 ")
-	bigBlock := lipgloss.NewStyle().Padding(1, 0).Width(76).Align(lipgloss.Center).Render(bigHuginn)
-	wordmark = lipgloss.JoinVertical(lipgloss.Center, ravensTop, bigBlock)
-
-	subtitleInner := lipgloss.NewStyle().Bold(true).Foreground(colMuted).Render("AI  AGENT  ORCHESTRATION")
-	subtitle := lipgloss.NewStyle().Padding(0, 1).Width(76).Align(lipgloss.Center).Render(subtitleInner)
-	ver := lipgloss.NewStyle().Foreground(colRaven).Width(76).Align(lipgloss.Center).Render(VERSION + "  •  INTELLIGENCE & KNOWLEDGE INFRASTRUCTURE  •  𓅃𓅃")
-	divider := lipgloss.NewStyle().Foreground(colBorder).Width(76).Align(lipgloss.Center).Render(strings.Repeat("─", 52))
-
-	header := lipgloss.JoinVertical(lipgloss.Center, "", wordmark, subtitle, ver, "", divider)
-	// CLI context: muestra Project/Context si viene de `huginn <path>` / `huginn "<prompt>"` — no duplica Vault, solo referencia
-	if m.projectPath != "" {
-		ctx := m.projectPath
-		if len(ctx) > 52 {
-			ctx = "…" + ctx[len(ctx)-51:]
-		}
-		ctxLine := fmt.Sprintf("Project └─ %s", ctx)
-		if m.pkgManager != "" {
-			ctxLine += lipgloss.NewStyle().Foreground(colMuted).Render("  • ") + lipgloss.NewStyle().Foreground(colSuccess).Render(m.pkgManager)
-		}
-		if m.vaultPath != "" {
-			vIcon := "○"
-			vCol := colMuted
-			if m.vaultOK {
-				vIcon = "●"
-				vCol = colSuccess
-			}
-			ctxLine += "  " + lipgloss.NewStyle().Foreground(vCol).Render(vIcon+" vault")
-		}
-		header = lipgloss.JoinVertical(lipgloss.Center, header, lipgloss.NewStyle().Foreground(colMuted).Width(76).Align(lipgloss.Center).Render(ctxLine), "")
-	}
+	header := tuicomp.RenderHeader(tuicomp.HeaderProps{
+		ProjectPath: m.projectPath,
+		ProjectName: m.projectName,
+		VaultPath:   m.vaultPath,
+		VaultOK:     m.vaultOK,
+		PkgManager:  m.pkgManager,
+		Version:     VERSION,
+		Width:       76,
+	})
 
 	// chat tiene layout propio de 86 cols (dashboard) — no usa header global
 	if m.mode == modeChat {
@@ -1679,6 +1955,8 @@ func (m model) View() tea.View {
 		body = viewServers(m)
 	case modeGraph:
 		body = viewGraph(m)
+	case modeVault:
+		body = viewVaultWizard(m)
 	}
 
 	content := lipgloss.JoinVertical(lipgloss.Center, header, "", body)
@@ -1690,7 +1968,7 @@ func (m model) View() tea.View {
 func viewInput(m model) string {
 	line := m.input
 	if line == "" {
-		line = lipgloss.NewStyle().Foreground(colMuted).Render("describe the task for huginn to orchestrate…  •  or @chatgpt @opencode @all para chatear")
+		line = lipgloss.NewStyle().Foreground(colMuted).Render("escribe para chatear — Enter para enviar  •  @chatgpt @opencode @all opcional")
 	} else {
 		cursorChar := " "
 		if m.cursor < len(line) {
@@ -1747,8 +2025,8 @@ func viewInput(m model) string {
 	}
 
 	hints := lipgloss.NewStyle().Foreground(colMuted).Render(
-		lipgloss.NewStyle().Bold(true).Foreground(colText).Render("enter")+" run / @chat    "+
-			lipgloss.NewStyle().Bold(true).Foreground(colText).Render("ctrl+c")+" quit")
+		lipgloss.NewStyle().Bold(true).Foreground(colText).Render("enter") + " run / @chat    " +
+			lipgloss.NewStyle().Bold(true).Foreground(colText).Render("ctrl+c") + " quit")
 
 	if mentionSuggest != "" {
 		return lipgloss.JoinVertical(lipgloss.Right, panel, mentionSuggest, hints)
@@ -1788,8 +2066,8 @@ func viewRunning(m model) string {
 		Render(logStyle.Render(strings.Join(logLines, "\n")))
 
 	hints := lipgloss.NewStyle().Foreground(colMuted).Render(
-		lipgloss.NewStyle().Bold(true).Foreground(colText).Render("esc")+" new task    "+
-			lipgloss.NewStyle().Bold(true).Foreground(colText).Render("ctrl+c")+" quit")
+		lipgloss.NewStyle().Bold(true).Foreground(colText).Render("esc") + " new task    " +
+			lipgloss.NewStyle().Bold(true).Foreground(colText).Render("ctrl+c") + " quit")
 
 	return lipgloss.JoinVertical(lipgloss.Right, agentsBlock, "", logsBlock, hints)
 }
@@ -1818,7 +2096,7 @@ func viewHelp(m model) string {
 
 func viewAgents(m model) string {
 	var rows []string
-	title := lipgloss.NewStyle().Bold(true).Foreground(colAccent).Render("CONNECTED AGENTS")
+	title := lipgloss.NewStyle().Bold(true).Foreground(colAccent).Render("AGENTS  —  Connected")
 	rows = append(rows, title, "")
 	for _, a := range backendAgents {
 		online := commandAvailable(a.Command)
@@ -2045,7 +2323,7 @@ func viewSettings(m model) string {
 }
 
 func viewServers(m model) string {
-	title := lipgloss.NewStyle().Bold(true).Foreground(colAccent).Render("SERVERS")
+	title := lipgloss.NewStyle().Bold(true).Foreground(colAccent).Render("SERVERS  —  MCP · LSP · Peers")
 	sub := lipgloss.NewStyle().Foreground(colMuted).Render(fmt.Sprintf("MCP · LSP · Peers  •  local %s (%s)", localHostname, localPeerID))
 	header := lipgloss.JoinVertical(lipgloss.Left, title, sub, "")
 
@@ -2301,10 +2579,10 @@ func viewServers(m model) string {
 
 func viewGraph(m model) string {
 	title := lipgloss.NewStyle().Bold(true).Foreground(colAccent).Render("KNOWLEDGE GRAPH")
-	sub := lipgloss.NewStyle().Foreground(colMuted).Render("12 nodes  •  23 edges  •  4 agents  •  synced  •  Agent Vault")
+	sub := lipgloss.NewStyle().Foreground(colMuted).Render(fmt.Sprintf("12 nodes  •  23 edges  •  4 agents  •  synced  •  %d/%d", m.graphCursor+1, len(graphNodes)))
 	header := lipgloss.JoinVertical(lipgloss.Left, title, sub, "")
-
-	graph := []string{
+	// grafo base
+	baseGraph := []string{
 		lipgloss.NewStyle().Foreground(colMuted).Render("                         ") + lipgloss.NewStyle().Foreground(colPurple).Bold(true).Render("● Agent"),
 		lipgloss.NewStyle().Foreground(colBorder).Render("                            │"),
 		lipgloss.NewStyle().Foreground(colBorder).Render("                ┌────────────┼────────────┐"),
@@ -2318,9 +2596,17 @@ func viewGraph(m model) string {
 		lipgloss.NewStyle().Foreground(colBorder).Render("    │       │  │       │ │  │       │  │       │"),
 		lipgloss.NewStyle().Foreground(colMuted2).Render("  ○ config ● context") + lipgloss.NewStyle().Foreground(colWarn).Render(" ● reviewer") + lipgloss.NewStyle().Foreground(colPurple).Render(" ● architect") + lipgloss.NewStyle().Foreground(colSuccess).Render(" ○ dev") + lipgloss.NewStyle().Foreground(lipgloss.Color("#4a8af4")).Render(" ● researcher"),
 	}
-
-	content := strings.Join(graph, "\n")
-	// center graph
+	// resalta línea que contiene el nodo seleccionado
+	sel := graphNodes[m.graphCursor]
+	highlighted := make([]string, len(baseGraph))
+	for i, line := range baseGraph {
+		if strings.Contains(line, sel.Label) {
+			highlighted[i] = lipgloss.NewStyle().Background(colPanel2).Foreground(colWhite).Bold(true).Padding(0, 1).Render(line)
+		} else {
+			highlighted[i] = line
+		}
+	}
+	content := strings.Join(highlighted, "\n")
 	graphBox := lipgloss.NewStyle().
 		Background(colPanel).
 		BorderStyle(lipgloss.NormalBorder()).
@@ -2329,40 +2615,202 @@ func viewGraph(m model) string {
 		Width(76).
 		Height(16).
 		Render(content)
-
-	// footer stats like screenshot
+	// panel de detalle del nodo seleccionado
+	selDetail := lipgloss.NewStyle().Bold(true).Foreground(sel.Color).Render("▶ "+sel.Label) + lipgloss.NewStyle().Foreground(colMuted).Render("  •  "+sel.Type) + "\n" + lipgloss.NewStyle().Foreground(colText2).Render(sel.Desc)
+	detailBox := lipgloss.NewStyle().Background(colPanel2).BorderStyle(lipgloss.NormalBorder()).BorderForeground(colBorder).Padding(0, 1).Width(76).Render(selDetail)
 	stats := lipgloss.NewStyle().Foreground(colMuted).Render("◉ 12 nodes  •  23 edges  •  4 agents  •  synced") +
 		lipgloss.NewStyle().Foreground(colMuted2).Render("    │    ") +
 		lipgloss.NewStyle().Foreground(colAccent).Render("vault: ~/agent-vault")
 	statsLine := lipgloss.NewStyle().Width(76).Align(lipgloss.Center).Render(stats)
-
+	legend := lipgloss.NewStyle().Foreground(colMuted).Render("● agent  ◉ memory  ○ project  ─ connection") + lipgloss.NewStyle().Foreground(colMuted2).Render("  •  ↑↓←→ navega")
 	hints := lipgloss.NewStyle().Foreground(colMuted).Render(
 		lipgloss.NewStyle().Bold(true).Foreground(colText).Render("esc") + " volver  " +
-			lipgloss.NewStyle().Bold(true).Foreground(colText).Render("↑↓") + " navegar  " +
-			lipgloss.NewStyle().Bold(true).Foreground(colText).Render("enter") + " inspeccionar",
+			lipgloss.NewStyle().Bold(true).Foreground(colText).Render("↑↓←→") + " navegar  " +
+			lipgloss.NewStyle().Bold(true).Foreground(colText).Render("enter") + " inspeccionar  " +
+			lipgloss.NewStyle().Bold(true).Foreground(colText).Render("r") + " reset",
 	)
-
 	panel := lipgloss.NewStyle().
 		Background(colPanel).
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderForeground(colBorder).
 		Padding(0, 1).
 		Width(76).
-		Render(lipgloss.JoinVertical(lipgloss.Left, header, "", graphBox, statsLine))
+		Render(lipgloss.JoinVertical(lipgloss.Left, header, "", graphBox, detailBox, legend, statsLine))
+	return lipgloss.JoinVertical(lipgloss.Right, panel, hints)
+}
 
+func viewVaultWizard(m model) string {
+	q := vaultWizardQuestions[m.vaultWizardStep]
+	progress := fmt.Sprintf("Paso %d/%d", m.vaultWizardStep+1, len(vaultWizardQuestions))
+	title := lipgloss.NewStyle().Bold(true).Foreground(colAccent).Render("VAULT  —  Configuración")
+	sub := lipgloss.NewStyle().Foreground(colMuted).Render(progress + "  •  /vault  •  " + q.Title + "  •  " + m.vaultWizardData.Name)
+	header := lipgloss.JoinVertical(lipgloss.Left, title, sub, "")
+	filled := (m.vaultWizardStep + 1) * 20 / len(vaultWizardQuestions)
+	bar := strings.Repeat("█", filled) + strings.Repeat("░", 20-filled)
+	barLine := lipgloss.NewStyle().Foreground(colAccent).Render(bar) + lipgloss.NewStyle().Foreground(colMuted).Render(fmt.Sprintf(" %d%%", (m.vaultWizardStep+1)*100/len(vaultWizardQuestions)))
+	question := lipgloss.NewStyle().Bold(true).Foreground(colWhite).Render(q.Prompt)
+	var body string
+	if len(q.Options) > 0 {
+		var opts []string
+		for i, opt := range q.Options {
+			style := lipgloss.NewStyle().Foreground(colText2).Padding(0, 1).Width(28)
+			if i == m.vaultWizardCursor {
+				style = lipgloss.NewStyle().Foreground(colPanel).Background(colAccent).Bold(true).Padding(0, 1).Width(28)
+			}
+			check := "  "
+			if opt == m.vaultWizardInput {
+				check = "▶ "
+			}
+			desc := ""
+			if q.Key == "Purpose" {
+				if opt == "personal" { desc = "  privado" }
+				if opt == "equipo" { desc = "  compartido" }
+				if opt == "proyecto" { desc = "  por repo" }
+			}
+			if q.Key == "VaultType" {
+				if opt == "knowledge" { desc = "  docs" }
+				if opt == "memory" { desc = "  prefs" }
+				if opt == "mixed" { desc = "  ambos" }
+			}
+			opts = append(opts, style.Render(check+opt+lipgloss.NewStyle().Foreground(colMuted).Render(desc)))
+		}
+		body = strings.Join(opts, "\n")
+	} else {
+		cursor := "█"
+		input := m.vaultWizardInput
+		if input == "" {
+			input = lipgloss.NewStyle().Foreground(colMuted).Italic(true).Render(q.Default)
+		} else {
+			input = lipgloss.NewStyle().Foreground(colWhite).Render(input) + lipgloss.NewStyle().Background(colAccent).Foreground(colPanel).Render(cursor)
+		}
+		box := lipgloss.NewStyle().Background(colPanel2).BorderStyle(lipgloss.RoundedBorder()).BorderForeground(colAccent).Padding(0, 1).Width(52).Render(input)
+		body = box + "\n" + lipgloss.NewStyle().Foreground(colMuted).Italic(true).Render("Escribe • Enter confirma • Esc atrás")
+	}
+	var summary []string
+	for i := 0; i < m.vaultWizardStep; i++ {
+		qq := vaultWizardQuestions[i]
+		var val string
+		switch qq.Key {
+		case "Path": val = m.vaultWizardData.Path
+		case "Name": val = m.vaultWizardData.Name
+		case "Purpose": val = m.vaultWizardData.Purpose
+		case "VaultType": val = m.vaultWizardData.VaultType
+		case "Sync": val = m.vaultWizardData.Sync
+		case "Indexing": val = m.vaultWizardData.Indexing
+		case "Embeddings": val = m.vaultWizardData.Embeddings
+		}
+		icon := lipgloss.NewStyle().Foreground(colSuccess).Render("✓ ")
+		summary = append(summary, icon+lipgloss.NewStyle().Foreground(colMuted).Render(qq.Title+": ")+lipgloss.NewStyle().Foreground(colWhite).Render(val))
+	}
+	summaryBox := ""
+	if len(summary) > 0 {
+		summaryBox = lipgloss.NewStyle().Background(colPanel2).BorderStyle(lipgloss.NormalBorder()).BorderForeground(colBorder).Padding(0, 1).Width(52).Render(strings.Join(summary, "\n"))
+	}
+	// preview vault structure (derecha)
+	previewTitle := lipgloss.NewStyle().Bold(true).Foreground(colWhite).Render("Preview  ") + lipgloss.NewStyle().Foreground(colMuted).Render(m.vaultWizardData.Path)
+	previewTree := []string{
+		lipgloss.NewStyle().Foreground(colAccent).Render(m.vaultWizardData.Name+"/"),
+		lipgloss.NewStyle().Foreground(colMuted).Render("├── ") + lipgloss.NewStyle().Foreground(colSuccess).Render("memory/"),
+		lipgloss.NewStyle().Foreground(colMuted).Render("│   ├── ") + lipgloss.NewStyle().Foreground(colMuted2).Render("preferences.md"),
+		lipgloss.NewStyle().Foreground(colMuted).Render("│   └── ") + lipgloss.NewStyle().Foreground(colMuted2).Render("index.jsonl"),
+		lipgloss.NewStyle().Foreground(colMuted).Render("├── ") + lipgloss.NewStyle().Foreground(colPurple).Render("agents/"),
+		lipgloss.NewStyle().Foreground(colMuted).Render("├── ") + lipgloss.NewStyle().Foreground(colWarn).Render("knowledge/"),
+		lipgloss.NewStyle().Foreground(colMuted).Render("└── ") + lipgloss.NewStyle().Foreground(colMuted2).Render("config.json"),
+	}
+	previewBox := lipgloss.NewStyle().Background(colPanel2).BorderStyle(lipgloss.NormalBorder()).BorderForeground(colBorder).Padding(0, 1).Width(28).Height(9).Render(previewTitle + "\n" + strings.Join(previewTree, "\n"))
+	leftContent := lipgloss.JoinVertical(lipgloss.Left, question, "", body)
+	if summaryBox != "" {
+		leftContent = lipgloss.JoinVertical(lipgloss.Left, leftContent, "", summaryBox)
+	}
+	mainRow := lipgloss.JoinHorizontal(lipgloss.Top, lipgloss.NewStyle().Width(42).Render(leftContent), "  ", previewBox)
+	panel := lipgloss.NewStyle().Background(colPanel).BorderStyle(lipgloss.NormalBorder()).BorderForeground(colBorder2).Padding(1, 2).Width(76).Render(lipgloss.JoinVertical(lipgloss.Left, header, barLine, "", mainRow))
+	hints := lipgloss.NewStyle().Foreground(colMuted).Render(
+		lipgloss.NewStyle().Bold(true).Foreground(colText).Render("enter")+" confirmar  "+
+			lipgloss.NewStyle().Bold(true).Foreground(colText).Render("↑↓")+" elegir  "+
+			lipgloss.NewStyle().Bold(true).Foreground(colText).Render("esc")+" atrás  "+
+			lipgloss.NewStyle().Bold(true).Foreground(colText).Render("o")+" abrir",
+	)
 	return lipgloss.JoinVertical(lipgloss.Right, panel, hints)
 }
 
 func viewChat(m model) string {
-    innerW := 86
-    leftW := 63
-    rightW := 22
+    // Fullscreen chat — opencode-style but with Huginn improvements
+    w := m.width
+    h := m.height
+    if w < 80 {
+        w = 80
+    }
+    if h < 24 {
+        h = 24
+    }
+    innerW := w - 4
+    if innerW < 80 {
+        innerW = 80
+    }
+    leftW := int(float64(innerW) * 0.68)
+    rightW := innerW - leftW - 1
+    if leftW < 50 {
+        leftW = 50
+    }
+    if rightW < 20 {
+        rightW = 20
+    }
+    // Use full height for rows
+    totalRows := h - 8
+    if totalRows < 20 {
+        totalRows = 20
+    }
     pad := func(s string, w int) string {
         lw := lipgloss.Width(s)
         if lw >= w {
             return s
         }
         return s + strings.Repeat(" ", w-lw)
+    }
+    truncate := func(s string, w int) string {
+        if lipgloss.Width(s) <= w {
+            return s
+        }
+        runes := []rune(s)
+        for len(runes) > 0 && lipgloss.Width(string(runes)) > w-1 {
+            runes = runes[:len(runes)-1]
+        }
+        return string(runes) + "…"
+    }
+    // wrap para respuesta completa responsive — rompe por palabras, respeta ancho leftW
+    wrapLines := func(s string, w int) []string {
+        if w <= 10 {
+            w = 10
+        }
+        var lines []string
+        words := strings.Fields(s)
+        if len(words) == 0 {
+            return []string{s}
+        }
+        cur := words[0]
+        for _, wd := range words[1:] {
+            if lipgloss.Width(cur+" "+wd) <= w {
+                cur += " " + wd
+            } else {
+                lines = append(lines, cur)
+                cur = wd
+                // palabra muy larga — corta duro
+                for lipgloss.Width(cur) > w {
+                    runes := []rune(cur)
+                    cut := ""
+                    for _, r := range runes {
+                        if lipgloss.Width(cut+string(r)) > w-1 {
+                            break
+                        }
+                        cut += string(r)
+                    }
+                    lines = append(lines, cut)
+                    cur = string([]rune(cur)[len([]rune(cut)):])
+                }
+            }
+        }
+        lines = append(lines, cur)
+        return lines
     }
     row := func(left, right string) string {
         return "│" + pad(left, leftW) + "│" + pad(right, rightW) + "│"
@@ -2374,7 +2822,10 @@ func viewChat(m model) string {
     hdrLeft := lipgloss.NewStyle().Bold(true).Foreground(colWhite).Render(" HUGINN")
     hdrMid := lipgloss.NewStyle().Foreground(colMuted).Render("AI ORCHESTRATOR")
     hdrRight := lipgloss.NewStyle().Foreground(colSuccess).Render("● CONNECTED")
-    hdr := "│" + pad(hdrLeft, 28) + pad(hdrMid, 32) + pad(hdrRight, 26) + "│"
+    // header centered
+    hdrContentWidth := leftW + 1 + rightW
+    hdrInner := pad(hdrLeft, 20) + pad(hdrMid, hdrContentWidth-46) + pad(hdrRight, 26)
+    hdr := "│" + hdrInner + "│"
     prompt := "Implement authentication with JWT"
     if len(m.chatHistory) > 0 {
         for i:=len(m.chatHistory)-1; i>=0; i-- {
@@ -2384,8 +2835,8 @@ func viewChat(m model) string {
             }
         }
     }
-    if len(prompt) > 38 {
-        prompt = prompt[:38]+"…"
+    if lipgloss.Width(prompt) > 40 {
+        prompt = truncate(prompt, 40)
     }
     agentStatus := func(name string) (string, color.Color) {
         for _, a := range m.agents {
@@ -2409,7 +2860,7 @@ func viewChat(m model) string {
     }
     inputLine := m.chatInput
     if strings.TrimSpace(inputLine)=="" {
-        inputLine = lipgloss.NewStyle().Foreground(colMuted).Render("_ ")
+        inputLine = lipgloss.NewStyle().Foreground(colMuted).Italic(true).Render("escribe con @chatgpt @opencode @all …")
     } else {
         before := inputLine[:m.chatCursor]
         after := ""
@@ -2423,69 +2874,99 @@ func viewChat(m model) string {
         caret := lipgloss.NewStyle().Background(colWhite).Foreground(lipgloss.Color("#0a0c0f")).Render(cur)
         inputLine = lipgloss.NewStyle().Foreground(colWhite).Render(before) + caret + lipgloss.NewStyle().Foreground(colWhite).Render(after)
     }
-    inputRow := lipgloss.NewStyle().Foreground(colAccent).Render("> ") + inputLine
-    leftLines := []string{
-        "",
-        lipgloss.NewStyle().Bold(true).Foreground(colWhite).Render("  HUGINN"),
-        lipgloss.NewStyle().Foreground(colBorder).Render("  "+strings.Repeat("─", 45)),
-        "",
-        lipgloss.NewStyle().Foreground(colAccent).Render("  > ") + lipgloss.NewStyle().Foreground(colWhite).Render(prompt),
-        "",
-        lipgloss.NewStyle().Foreground(colBorder).Render("  "+strings.Repeat("─", 45)),
-        "",
-        lipgloss.NewStyle().Foreground(colSuccess).Render("  ● HUGINN") + lipgloss.NewStyle().Foreground(colMuted).Render("   Orchestrating"),
-        "",
-    }
-    dispatchTitle := lipgloss.NewStyle().Bold(true).Foreground(colWhite).Render(" AGENT DISPATCH")
-    dispatchRows := []string{
-        "",
-        dispatchTitle,
-        "",
-    }
+    _ = lipgloss.NewStyle().Foreground(colAccent).Render("> ") + inputLine
+    // híbrido opencode: left limpio solo chat history + input (sin dispatch duplicado)
     agents := []string{"ChatGPT", "OpenCode", "Kilo Code", "Mimo Code", "Muse Code"}
-    agentTasks := map[string]string{
-        "ChatGPT": "Architecture analysis",
-        "OpenCode": "Backend implementation",
-        "Kilo Code": "Edge-case analysis",
-        "Mimo Code": "Code review",
-        "Muse Code": "Documentation",
+    leftLines := []string{""}
+    if lipgloss.Width(prompt) > 0 && len(m.chatHistory) <= 1 {
+        leftLines = append(leftLines, lipgloss.NewStyle().Foreground(colMuted).Render("  › ")+lipgloss.NewStyle().Foreground(colText2).Italic(true).Render(truncate(prompt, leftW-8)))
+        leftLines = append(leftLines, "")
     }
-    for _, an := range agents {
-        st, _ := agentStatus(an)
-        icon := "◌"
-        if st=="READY" {
-            icon = "✓"
+    if len(m.chatHistory) > 0 {
+        // muestra todas las que caben según altura disponible — responsive
+        // altura disponible para mensajes = totalRows - inputBox(3) - rightHeader(2) - padding
+        availRows := totalRows - 10
+        if availRows < 8 {
+            availRows = 8
         }
-        if st=="WORKING" {
-            icon = "●"
+        hist := m.chatHistory
+        // recolecta líneas envueltas y corta por availRows con scroll
+        var rendered []string
+        for _, msg := range hist {
+            ts := ""
+            if msg.Time != "" {
+                ts = lipgloss.NewStyle().Foreground(colMuted).Render("["+msg.Time+"] ")
+            }
+            if msg.IsUser {
+                prefix := ts + lipgloss.NewStyle().Foreground(colAccent).Render("▶ You: ")
+                pw := leftW - lipgloss.Width(prefix) - 4
+                if pw < 20 {
+                    pw = 20
+                }
+                for i, wl := range wrapLines(msg.Text, pw) {
+                    if i == 0 {
+                        rendered = append(rendered, prefix+lipgloss.NewStyle().Foreground(colWhite).Render(wl))
+                    } else {
+                        rendered = append(rendered, strings.Repeat(" ", lipgloss.Width(prefix))+lipgloss.NewStyle().Foreground(colWhite).Render(wl))
+                    }
+                }
+            } else {
+                if strings.Contains(msg.Text, "… escribiendo") {
+                    line := lipgloss.NewStyle().Foreground(colMuted).Render("    ◌ " + msg.From + " escribiendo…")
+                    rendered = append(rendered, line)
+                } else {
+                    col := colText2
+                    switch msg.From {
+                    case "ChatGPT":
+                        col = colPurple
+                    case "OpenCode":
+                        col = colAccent
+                    case "Kilo Code":
+                        col = colSuccess
+                    case "Mimo Code":
+                        col = lipgloss.Color("#f59e0b")
+                    case "Muse Code":
+                        col = lipgloss.Color("#e8a83e")
+                    case "Hugin":
+                        col = colWarn
+                    }
+                    prefix := ts + lipgloss.NewStyle().Bold(true).Foreground(col).Render(" " + msg.From + ": ")
+                    pw := leftW - lipgloss.Width(prefix) - 4
+                    if pw < 20 {
+                        pw = 20
+                    }
+                    for i, wl := range wrapLines(msg.Text, pw) {
+                        if i == 0 {
+                            rendered = append(rendered, prefix+lipgloss.NewStyle().Foreground(colText2).Render(wl))
+                        } else {
+                            rendered = append(rendered, strings.Repeat(" ", lipgloss.Width(prefix))+lipgloss.NewStyle().Foreground(colText2).Render(wl))
+                        }
+                    }
+                }
+            }
         }
-        var iconCol color.Color = colMuted
-        if icon=="✓" {
-            iconCol = colSuccess
+        // responsive: corta por altura disponible y respeta scroll (PgUp/PgDn)
+        if len(rendered) > availRows {
+            start := len(rendered) - availRows - m.chatScroll
+            if start < 0 {
+                start = 0
+            }
+            end := start + availRows
+            if end > len(rendered) {
+                end = len(rendered)
+            }
+            rendered = rendered[start:end]
+        } else if m.chatScroll > 0 && m.chatScroll < len(rendered) {
+            // si hay menos líneas que avail pero hay scroll, no hacer nada extra
         }
-        if icon=="●" {
-            iconCol = colAccent
-        }
-        namePadded := pad(an, 11)
-        taskPadded := pad(agentTasks[an], 24)
-        line2 := lipgloss.NewStyle().Foreground(colText2).Render(namePadded) + lipgloss.NewStyle().Foreground(colMuted).Render(" → ") + lipgloss.NewStyle().Foreground(colText2).Render(taskPadded) + lipgloss.NewStyle().Foreground(iconCol).Render(icon)
-        dispatchRows = append(dispatchRows, line2)
+        leftLines = append(leftLines, rendered...)
+        leftLines = append(leftLines, "")
     }
-    dispatchBoxContent := strings.Join(dispatchRows, "\n")
-    dispatchBox := lipgloss.NewStyle().BorderStyle(lipgloss.NormalBorder()).BorderForeground(colBorder).Padding(0,1).Width(55).Render(dispatchBoxContent)
-    leftLines = append(leftLines, dispatchBox)
-    leftLines = append(leftLines, "")
-    leftLines = append(leftLines, lipgloss.NewStyle().Bold(true).Foreground(colWhite).Render("  BACKGROUND TASKS"))
-    leftLines = append(leftLines, lipgloss.NewStyle().Foreground(colBorder).Render("  "+strings.Repeat("─", 45)))
-    bgTasks := []string{
-        lipgloss.NewStyle().Foreground(colSuccess).Render("  [✓]") + lipgloss.NewStyle().Foreground(colText2).Render(" Research authentication patterns") + lipgloss.NewStyle().Foreground(colMuted).Render("             2m 14s"),
-        lipgloss.NewStyle().Foreground(colAccent).Render("  [●]") + lipgloss.NewStyle().Foreground(colText2).Render(" Analyze existing architecture") + lipgloss.NewStyle().Foreground(colMuted).Render("                 34s"),
-        lipgloss.NewStyle().Foreground(colMuted).Render("  [◌]") + lipgloss.NewStyle().Foreground(colMuted).Render(" Review security implications") + lipgloss.NewStyle().Foreground(colMuted).Render("                  queued"),
+    inputBoxContent := lipgloss.NewStyle().Foreground(colAccent).Render("> ") + inputLine + "\n" + lipgloss.NewStyle().Foreground(colMuted).Render("  "+m.pkgManager+" · Enter enviar • Esc limpiar • Tab agente")
+    inputBox := lipgloss.NewStyle().BorderStyle(lipgloss.RoundedBorder()).BorderForeground(colAccent).Background(colPanel2).Padding(0, 1).Width(leftW-4).Render(inputBoxContent)
+    for _, line := range strings.Split(inputBox, "\n") {
+        leftLines = append(leftLines, line)
     }
-    leftLines = append(leftLines, bgTasks...)
-    leftLines = append(leftLines, "")
-    leftLines = append(leftLines, lipgloss.NewStyle().Foreground(colBorder).Render("  "+strings.Repeat("─", 45)))
-    leftLines = append(leftLines, "  "+inputRow)
     rightLines := []string{
         lipgloss.NewStyle().Bold(true).Foreground(colWhite).Render(" AGENTS"),
         "",
@@ -2498,7 +2979,7 @@ func viewChat(m model) string {
         rightLines = append(rightLines, fmt.Sprintf(" %s %s %s", dot, name, status))
     }
     rightLines = append(rightLines, "")
-    rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colBorder).Render(strings.Repeat("─", 18)))
+    rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colBorder).Render(strings.Repeat("─", rightW-2)))
     rightLines = append(rightLines, lipgloss.NewStyle().Bold(true).Foreground(colWhite).Render(" TASK PIPELINE"))
     rightLines = append(rightLines, "")
     rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colSuccess).Render(" ● Research"))
@@ -2511,7 +2992,7 @@ func viewChat(m model) string {
     rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colMuted).Render("   queued"))
     rightLines = append(rightLines, "")
     rightLines = append(rightLines, lipgloss.NewStyle().Bold(true).Foreground(colWhite).Render(" CONTEXT"))
-    rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colBorder).Render(strings.Repeat("─", 18)))
+    rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colBorder).Render(strings.Repeat("─", rightW-2)))
     rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colMuted).Render(" Project"))
     rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colText2).Render(" └─ huginn-tui"))
     rightLines = append(rightLines, "")
@@ -2519,16 +3000,24 @@ func viewChat(m model) string {
     rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colMuted).Render(" ├─ auth decisions"))
     rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colMuted).Render(" ├─ agent history"))
     rightLines = append(rightLines, lipgloss.NewStyle().Foreground(colMuted).Render(" └─ project context"))
-    totalRows := 26
-    for len(leftLines) < totalRows { leftLines = append(leftLines, "") }
-    for len(rightLines) < totalRows { rightLines = append(rightLines, "") }
-    if len(leftLines) > totalRows { leftLines = leftLines[:totalRows] }
-    if len(rightLines) > totalRows { rightLines = rightLines[:totalRows] }
+    // dynamic rows based on height
+    for len(leftLines) < totalRows {
+        leftLines = append(leftLines, "")
+    }
+    for len(rightLines) < totalRows {
+        rightLines = append(rightLines, "")
+    }
+    if len(leftLines) > totalRows {
+        leftLines = leftLines[len(leftLines)-totalRows:]
+    }
+    if len(rightLines) > totalRows {
+        rightLines = rightLines[:totalRows]
+    }
     var rows []string
     rows = append(rows, top)
     rows = append(rows, hdr)
     rows = append(rows, midDiv)
-    for i:=0; i<totalRows; i++ {
+    for i := 0; i < totalRows; i++ {
         l := leftLines[i]
         r := rightLines[i]
         rows = append(rows, row(l, r))
@@ -2543,8 +3032,8 @@ func viewChat(m model) string {
     rows = append(rows, "│" + pad(bottomContent, innerW) + "│")
     rows = append(rows, bottom)
     content := strings.Join(rows, "\n")
-    outer := lipgloss.NewStyle().BorderStyle(lipgloss.NormalBorder()).BorderForeground(colBorder2).Render(content)
-    return lipgloss.Place(120, 38, lipgloss.Center, lipgloss.Center, outer)
+    // Fullscreen: use full terminal size, no extra outer border
+    return content
 }
 
 
@@ -2562,7 +3051,7 @@ type cliArgs struct {
 }
 
 var futureSubcommands = map[string]bool{
-    "chat": true, "agent": true, "agents": true, "memory": true, "vault": true, "config": true, "graph": true,
+    "chat": true, "agent": true, "agents": true, "memory": true, "vault": true, "config": true,
 }
 
 func isDebug() bool {
@@ -2745,7 +3234,6 @@ func printHelp() {
   huginn agents               Listar agentes
   huginn memory               Consultar memoria
   huginn vault                Explorar vault
-  huginn graph                Ver knowledge graph
   huginn config               Gestionar configuración
 
 %sEjemplos:%s
@@ -2785,40 +3273,19 @@ func huginnError(msg string, debug bool, err error) {
 }
 
 func runTUI(projectPath, prompt string) error {
-     abs, err := filepath.Abs(projectPath)
-     if err != nil {
-         abs = projectPath
-     }
-     if projectPath != "." {
-         if _, err := os.Stat(abs); err != nil {
-             return fmt.Errorf("ruta no encontrada: %s", abs)
-         }
-         if !isDirectory(abs) {
-             return fmt.Errorf("la ruta no es un directorio: %s", abs)
-         }
-     }
-     m := initialModelWithContext(abs, prompt)
-     p := tea.NewProgram(m)
-     if _, err := p.Run(); err != nil {
-         return err
-     }
-     return nil
- }
-
-func runGraphTUI(projectPath string) error {
     abs, err := filepath.Abs(projectPath)
     if err != nil {
         abs = projectPath
     }
-    if _, err := os.Stat(abs); err != nil {
-        return fmt.Errorf("ruta no encontrada: %s", abs)
+    if projectPath != "." {
+        if _, err := os.Stat(abs); err != nil {
+            return fmt.Errorf("ruta no encontrada: %s", abs)
+        }
+        if !isDirectory(abs) {
+            return fmt.Errorf("la ruta no es un directorio: %s", abs)
+        }
     }
-    m := initialModel()
-    m.projectPath = abs
-    m.projectName = filepath.Base(abs)
-    m.pkgManager = detectPackageManager(abs)
-    m.vaultPath, m.vaultOK = resolveVaultPath()
-    m.mode = modeGraph
+    m := initialModelWithContext(abs, prompt)
     p := tea.NewProgram(m)
     if _, err := p.Run(); err != nil {
         return err
@@ -2826,7 +3293,93 @@ func runGraphTUI(projectPath string) error {
     return nil
 }
 
+func dumpViews() {
+	cases := []struct {
+		name string
+		mode mode
+		setup func(*model)
+	}{
+		{"chat", modeChat, func(m *model) {
+			m.chatHistory = []chatMsg{
+				{From: "Hugin", Text: "Chat iniciado. Menciona con @chatgpt @opencode @kilo @mimo @muse @all  •  o usa Tab/1-6", IsUser: false, Time: "20:24"},
+				{From: "You", Text: "analiza este proyecto en detalle y explica la arquitectura hexagonal y el sistema de Vault", IsUser: true, Time: "20:24"},
+				{From: "ChatGPT", Text: "Detectado Go 1.25 + Bubble Tea v2. Proyecto limpio con 4 agentes (ChatGPT, OpenCode, Kilo y Muse). Arquitectura hexagonal: cmd/huginn → cli → application/orchestrator → domain/agent/vault → infrastructure. Vault .huginn con config.json, vault.json, memory.jsonl y user/*.md. Este texto largo debe envolverse automaticamente y adaptarse al ancho de la pantalla sin truncarse, mostrando la respuesta completa de forma fluida y premium, con scroll via PgUp/PgDn.", IsUser: false, Time: "20:25"},
+			}
+			m.chatInput = "explica el vault"
+			m.chatCursor = len(m.chatInput)
+		}},
+		{"vault", modeVault, func(m *model) { m.vaultWizardStep = 2 }},
+		{"graph", modeGraph, func(m *model) { m.graphCursor = 3 }},
+		{"settings", modeSettings, func(m *model) {}},
+		{"servers", modeServers, func(m *model) { m.serversTab = 0; m.serversCursor = 1 }},
+		{"memory", modeStatus, func(m *model) {}},
+	}
+	for _, c := range cases {
+		m := initialModelWithContext(".", "")
+		m.width = 120
+		m.height = 38
+		m.mode = c.mode
+		m.projectPath, _ = filepath.Abs(".")
+		m.projectName = "huginn-tui"
+		m.pkgManager = "go"
+		m.vaultPath = "~/agent-vault"
+		m.vaultOK = true
+		if c.setup != nil {
+			c.setup(&m)
+		}
+		var out string
+		switch c.mode {
+		case modeChat:
+			out = viewChat(m)
+		case modeVault:
+			out = viewVaultWizard(m)
+		case modeGraph:
+			out = viewGraph(m)
+		case modeSettings:
+			out = viewSettings(m)
+		case modeServers:
+			out = viewServers(m)
+		case modeStatus:
+			out = viewStatus(m)
+		default:
+			v := m.View()
+			out = fmt.Sprint(v)
+		}
+		// strip ANSI for preview and also save raw ANSI
+		_ = os.WriteFile("screenshot_"+c.name+".ansi", []byte(out), 0644)
+		// also generate text preview without ANSI for Python fallback
+		plain := stripAnsi(out)
+		_ = os.WriteFile("screenshot_"+c.name+".txt", []byte(plain), 0644)
+	}
+	fmt.Println("dumped views to screenshot_*.ansi/.txt")
+	os.Exit(0)
+}
+
+func stripAnsi(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	inEsc := false
+	for i := 0; i < len(s); i++ {
+		if s[i] == 0x1b && i+1 < len(s) && s[i+1] == '[' {
+			inEsc = true
+			i++
+			continue
+		}
+		if inEsc {
+			if (s[i] >= 'A' && s[i] <= 'Z') || (s[i] >= 'a' && s[i] <= 'z') {
+				inEsc = false
+			}
+			continue
+		}
+		b.WriteByte(s[i])
+	}
+	return b.String()
+}
+
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "--dump-ansi" {
+		dumpViews()
+	}
 	args := os.Args[1:]
 	parsed, err := parseArgs(args)
 	if err != nil {
@@ -2867,15 +3420,102 @@ func main() {
 			os.Exit(0)
 		case "graph":
 			path := "."
-			if len(parsed.SubArgs) > 0 && (isDirectory(parsed.SubArgs[0]) || parsed.SubArgs[0]=="." ) {
+			if len(parsed.SubArgs) > 0 && (isDirectory(parsed.SubArgs[0]) || parsed.SubArgs[0] == ".") {
 				path = parsed.SubArgs[0]
 			}
-			if err := runGraphTUI(path); err != nil {
+			if err := runTUI(path, ""); err != nil {
 				huginnError(err.Error(), parsed.Debug || isDebug(), err)
 				os.Exit(1)
 			}
 			os.Exit(0)
-		case "agent", "agents", "memory", "vault", "config":
+		case "vault":
+			mgr := infravault.NewFilesystemManager()
+			if len(parsed.SubArgs) == 0 {
+				// huginn vault → muestra vault actual o detecta
+				if v, ok := mgr.GetCurrent(); ok {
+					fmt.Printf("Vault actual: %s\nPath: %s\nID: %s\n", v.Name, v.Path, v.ID)
+				} else if v, ok := mgr.Detect("."); ok {
+					fmt.Printf("Vault detectado: %s\nPath: %s\n", v.Name, v.Path)
+				} else {
+					fmt.Println("No Vault selected. Usa: huginn vault open <path> | huginn vault create <name>")
+					recent, _ := mgr.Recent()
+					if len(recent) > 0 {
+						fmt.Println("\nRecent Vaults:")
+						for _, r := range recent {
+							fmt.Printf("  - %s (%s)\n", r.Name, r.Path)
+						}
+					}
+				}
+				os.Exit(0)
+			}
+			sub := parsed.SubArgs[0]
+			switch sub {
+			case "open":
+				path := "."
+				if len(parsed.SubArgs) > 1 {
+					path = parsed.SubArgs[1]
+				}
+				v, err := mgr.Open(nil, path)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "vault open failed: %v\n", err)
+					os.Exit(1)
+				}
+				fmt.Printf("Vault abierto: %s (%s)\n", v.Name, v.Path)
+			case "create":
+				if len(parsed.SubArgs) < 2 {
+					fmt.Fprintln(os.Stderr, "uso: huginn vault create <name> [parentDir]")
+					os.Exit(2)
+				}
+				name := parsed.SubArgs[1]
+				parent := "."
+				if len(parsed.SubArgs) > 2 {
+					parent = parsed.SubArgs[2]
+				}
+				v, err := mgr.Create(nil, parent, name)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "vault create failed: %v\n", err)
+					os.Exit(1)
+				}
+				fmt.Printf("Vault creado: %s (%s)\n", v.Name, v.Path)
+			case "list", "recent":
+				recent, _ := mgr.Recent()
+				if len(recent) == 0 {
+					fmt.Println("No recent vaults")
+				} else {
+					fmt.Println("Recent Vaults:")
+					for _, r := range recent {
+						fmt.Printf("  %s — %s\n", r.Name, r.Path)
+					}
+				}
+			case "current":
+				v, ok := mgr.GetCurrent()
+				if !ok {
+					fmt.Println("No vault open")
+				} else {
+					fmt.Printf("%s (%s)\n", v.Name, v.Path)
+				}
+			case "init":
+				path := "."
+				if len(parsed.SubArgs) > 1 {
+					path = parsed.SubArgs[1]
+				}
+				v, err := mgr.Initialize(nil, path)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "vault init failed: %v\n", err)
+					os.Exit(1)
+				}
+				fmt.Printf("Vault inicializado: %s (%s)\n", v.Name, v.Path)
+			default:
+				// huginn vault <path> → open
+				v, err := mgr.Open(nil, sub)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "vault open failed: %v\n", err)
+					os.Exit(1)
+				}
+				fmt.Printf("Vault abierto: %s (%s)\n", v.Name, v.Path)
+			}
+			os.Exit(0)
+		case "agent", "agents", "memory", "config":
 			fmt.Printf("huginn %s — (subcomando preparado, aún no implementado)\n", parsed.Subcommand)
 			fmt.Println("Usa: huginn --help para ver comandos disponibles.")
 			fmt.Println("El CLI está preparado para agregar este subcomando sin reescribir la arquitectura.")

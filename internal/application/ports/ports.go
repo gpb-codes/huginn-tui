@@ -10,12 +10,6 @@ type VaultPort interface {
 	Search(ctx context.Context, query string) ([]string, error)
 }
 
-// MemoryPort abstracts persistent memory (Agent Vault).
-type MemoryPort interface {
-	Search(ctx context.Context, query string) ([]string, error)
-	Save(ctx context.Context, text, project, importance string) error
-}
-
 // ToolPort abstracts MCP/LSP tools.
 type ToolPort interface {
 	Name() string

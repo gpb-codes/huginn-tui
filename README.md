@@ -1,214 +1,278 @@
-# Huginn — CLI + TUI para Agent Vault
+<p align="center">
+  <img src="./assets/logo.png" width="900" alt="HUGINN — AI AGENT ORCHESTRATION v0.2.0 • INTELLIGENCE & KNOWLEDGE INFRASTRUCTURE" />
+</p>
 
-Huginn es la **interfaz y capa de interacción de Agent Vault** — inspirado en OpenCode: comando global `huginn`, rápido y limpio.
+<p align="center">La TUI open source para Agent Vault.</p>
 
-```
-                HUGINN
-                  │
-        ┌─────────┴─────────┐
-        │                   │
-      CLI                 UI (TUI)
-        │                   │
-        └─────────┬─────────┘
-                  │
-            Orchestrator
-                  │
-        ┌─────────┼─────────┐
-        │         │         │
-     Planner    Coder    Researcher
-        │         │         │
-        └─────────┼─────────┘
-                  │
-             Agent Vault
-                  │
-        ┌─────────┼─────────┐
-        │         │         │
-     Memory     Files    Knowledge
-```
+<p align="center">
+  <a href="https://github.com/gpb-codes/huginn-tui"><img src="https://img.shields.io/github/stars/gpb-codes/huginn-tui?style=flat-square&label=stars" alt="stars" /></a>
+  <img src="https://img.shields.io/badge/Go-1.25-00ADD8?style=flat-square&logo=go&logoColor=white" alt="Go 1.25" />
+  <img src="https://img.shields.io/badge/Bubble_Tea-v2-9061f9?style=flat-square" alt="Bubble Tea v2" />
+  <img src="https://img.shields.io/badge/Licencia-MIT-yellow?style=flat-square" alt="MIT" />
+  <img src="https://img.shields.io/badge/plataforma-Windows%20%7C%20Linux%20%7C%20macOS-black?style=flat-square" alt="plataforma" />
+</p>
 
-**Huginn (CLI/TUI)** = interacción, chat, orquestación, agentes, herramientas, contexto.  
-**Agent Vault** = memoria persistente, conocimiento, embeddings, knowledge graph.
+<p align="center">
+  <a href="#capturas"><img src="./screenshot_chat.png" width="100%" alt="huginn TUI — chat a pantalla completa" /></a>
+</p>
 
-> Vikingpunk developer aesthetic — Go + Bubble Tea + Lipgloss, oscuro, morado/cyan, 100% terminal.
+<p align="center">
+  <sub>Chat a pantalla completa · 120x36 · Go + Bubble Tea + Lipgloss · render real de Go (<code>huginn --dump-ansi</code>) — no mock</sub>
+</p>
 
 ---
 
-## Objetivo actual
-
-Un ejecutable global `huginn` que use el directorio actual como contexto, detecte el proyecto, conecte con Agent Vault y abra la TUI o ejecute un prompt directo, sin que el usuario conozca la arquitectura interna.
-
-## Funcionalidades implementadas
-
-**CLI oficial** (`main.go:2428`, `internal/cli/cli.go:1`):
-- `huginn` / `huginn .` / `huginn <path>` / `huginn "<prompt>"` / `huginn <path> "<prompt>"` / `huginn --help` / `huginn --version` / `huginn --debug`
-- Subcomandos preparados: `chat`, `agent`, `agents`, `memory`, `vault`, `graph`, `config` (sin reescribir CLI)
-- Detección automática: proyecto (`go.mod/package.json/.git`), package manager (`bun>pnpm>yarn>npm`), Vault (`HUGINN_VAULT` > `~/agent-vault`)
-- Errores sin stack trace; `--debug`/`HUGINN_DEBUG=1` muestra detalle; nunca imprime secrets
-
-**TUI** (`main.go:1587`):
-- Dashboard `viewChat` fiel al mock: header `HUGINN • AI ORCHESTRATOR • ● CONNECTED`, split `63/22` con `AGENT DISPATCH` (ChatGPT/OpenCode/Kilo/Mimo/Muse) y `BACKGROUND TASKS` vs `AGENTS` + `TASK PIPELINE` + `CONTEXT` + input `> _` + footer `TAB/CTRL+P/CTRL+B/CTRL+G/CTRL+L`
-- Chat con `@chatgpt @opencode @kilo @mimo @muse @all` + autocomplete `Tab/Enter` y `parseMentions`
-- Orquestación simulada `advance:1556` (4 agentes secuencial 180ms), logs en vivo, `Esc` cancela, `Ctrl+C` sale
-- `⚙ Settings` (`viewSettings:2298`): árbol 8 secciones / 36 ajustes (General/Appearance/AI/Agents/Memory/Tools/Vault/Advanced) con `↑↓/←→/enter`, toggle `On↔Off`
-- `SERVERS` (`viewServers:2043`): tabs `MCP (7) / LSP (5) / Peers (4)` con `mcpServers:198` (stdio/sse/ws), `lspServers:219` (gopls/tsserver/pyright...), `peerServers:256` (Online/Syncing/Offline/Pairing) + `vault-sync` + `tickServers:1552`
-- `KNOWLEDGE GRAPH` (`viewGraph:2298`): comando `graph`/`/graph` (o `huginn graph` CLI + `Ctrl+G`), 12 nodos / 23 edges, `● Agent → ◉ Memory/● Context/○ Project ...`
-- `HUGINN` wordmark morado/blanco con cuervos `𓅃`
-
-**Infraestructura**:
-- `install.ps1:1` para Windows (PowerShell/CMD/WT/VS Code), `cmd/huginn/main.go:1` entry limpia
-- Tests `cli_test.go:1` (12 tests, `go test` OK), `go vet` OK, `go build` OK
-
-## Estado actual del desarrollo
-
-Proyecto funcional en estado **MVP + CLI oficial**. La TUI abre, navega, orquesta (simulado), gestiona settings/servers/graph y el CLI resuelve contexto real. No hay integración real con Agent Vault más allá de `resolveVaultPath` y `openVault` (explorer); embeddings/graph son mock. No hay persistencia de config ni red P2P real (peers simulados).
-
-## Arquitectura actual
-
-Clean + Hexagonal (monolito modular, migración incremental):
-
-```
-cmd/huginn/main.go              # wiring fino
-internal/cli/cli.go             # ParseArgs, PrintHelp
-internal/domain/project/        # IsDirectory, DetectPackageManager, DetectProject
-internal/domain/agent/          # Agent, Status, BackendAgent
-internal/domain/vault/          # ResolveVaultPath
-internal/domain/memory/         # Entry
-internal/application/ports/     # VaultPort, MemoryPort, ToolPort
-internal/infrastructure/config/ # Sections/Values
-internal/infrastructure/mcp/lsp/peers # servidores mock
-internal/tui/                   # (en migración) — hoy aún en main.go
-main.go                         # 2800 líneas God file (legacy, será partido)
-```
-
-Regla: `tui/cli → application → domain ← infrastructure`. `ARCHITECTURE.md:1` detalla flujo y próximos pasos. `go.mod:1` solo `bubbletea/v2` + `lipgloss/v2` (sin cobra/viper aún).
-
-## Tecnologías
-
-- **Go 1.25** — `go.mod:1`
-- **Charm Bubble Tea v2** + **Lipgloss v2** — TUI, `tea.NewProgram` `main.go:2800`
-- **Lipgloss** — bordes, colores `#111317/#33d9f2/#9061f9/#2fd67a`
-- **os/exec** — `opencode`/`kilocode` reales si están instalados (`commandAvailable:90`)
-- **Pillow (Python)** — generación de `screenshot.png` (solo docs)
-
-## Cómo ejecutar
+### Instalacion
 
 ```bash
+# compilar desde codigo fuente (recomendado)
+git clone https://github.com/gpb-codes/huginn-tui.git
 cd huginn-tui
-go mod tidy
-go vet ./... && go test ./... -count=1
-go run .                 # = huginn
-go run . -- --help
-go run . -- --version
-go run . -- "analiza este proyecto"
-go run . -- ./mi-proyecto "crea auth"
-go run ./cmd/huginn --help
-go run ./cmd/huginn graph
+go build -o huginn .
+./huginn --help
 
-# build global Windows
-go build -o huginn.exe .
-Move-Item huginn.exe $env:USERPROFILE\go\bin\huginn.exe
-huginn --help
-huginn
-huginn C:\Projects\mi-proyecto
-huginn "analiza este proyecto"
+# o instalar directamente con Go
+go install github.com/gpb-codes/huginn-tui/cmd/huginn@latest
 
-# o script
+# Windows — CLI global via PowerShell
 powershell -ExecutionPolicy Bypass -File install.ps1
+# instala en %USERPROFILE%\go\bin\huginn.exe (o %LOCALAPPDATA%\Programs\huginn)
 ```
 
-Dentro de la TUI: `graph`/`/graph` → grafo, `TAB` agente, `Ctrl+P` commands, `Ctrl+G` graph, `Ctrl+L` clear, `Esc` volver, `q` salir.
+Gestores de paquetes
 
-## Estructura relevante
-
-```
-huginn-tui/
-├── cmd/huginn/main.go          # CLI limpia
-├── internal/
-│   ├── cli/cli.go
-│   ├── domain/{project,agent,vault,memory}
-│   ├── application/ports/
-│   ├── infrastructure/{config,mcp,lsp,peers}
-│   └── tui/doc.go
-├── main.go                     # God file (a partir en tui/*)
-├── cli_test.go                 # tests CLI
-├── go.mod / go.sum
-├── install.ps1
-├── screenshot.png              # 1920×1080 Vikingpunk
-├── ARCHITECTURE.md
-└── .gitignore
+```bash
+go build -o huginn .                 # cualquier OS — genera huginn / huginn.exe
+go build -o huginn ./cmd/huginn      # entry point limpio (hexagonal)
+go vet ./... && go test ./...        # verificar antes de instalar
 ```
 
-## Qué se implementó durante la jornada
+> Nota: elimina binarios anteriores a v0.1.x antes de reinstalar. El script de instalacion sobrescribe `%USERPROFILE%\go\bin\huginn.exe` directamente.
 
-1. **Restaurado diseño HUGINN** y fix tabs `viewChat:2356` (RoundedBorder → PlaceHorizontal, sin `─────╮`)
-2. **Menú ⚙ Settings** (`huginnSettings:167`, `viewSettings:2298`) — 8 secciones/36 items con `↑↓←→/enter`
-3. **Sistema MCP/LSP/Peers** (`mcpServers:198`, `lspServers:219`, `peerServers:256`, `viewServers:2043`, `tickServers:1552`) — tabs, toggle, pairing `a`, ping `r`
-4. **CLI oficial** (`main.go:2428`, `internal/cli:1`) — `huginn`, `<path>`, `"<prompt>"`, `--help/--version/--debug`, subcomandos preparados, detección Windows/Unix, `resolveVaultPath` sin duplicar Vault
-5. **Clean Architecture** (`cmd/`, `internal/`, `ARCHITECTURE.md`) — Ports & Adapters, `go vet/test/build` OK
-6. **Screenshot producción** `screenshot.png` (Python/Pillow, 1920×1080, Vikingpunk)
-7. **Comando `graph`** (`modeGraph:287`, `viewGraph:2298`, `handleCommand:645`, `runGraphTUI:2815`) — `graph`/`/graph`/`huginn graph` + `Ctrl+G`
-8. **Chat dashboard** (`viewChat:2356` nuevo) — layout fiel al mock `HUGINN • AI ORCHESTRATOR • ● CONNECTED` + split 63/22 + `AGENT DISPATCH` + `BACKGROUND TASKS` + `CONTEXT` + input `> _`
-9. **Fixes** `colWarn/colError:22`, `agentStatus:2390` (`color.Color`), `isDirectory` Windows, `.gitignore:3` no ignorar `cmd/huginn`
+#### Directorio de instalacion
 
-## Qué queda pendiente / deuda técnica
+El script de instalacion respeta el siguiente orden de prioridad:
 
-- `main.go` God file (2800 líneas) aún concentra TUI + CLI + domain; terminar migración a `internal/tui/*.go` y `internal/application/usecases/`
-- Orquestación real: `advance` simula 20% cada 180ms; falta `os/exec` streaming por agente y contrato tarea→subtareas JSON
-- Agent Vault: solo `resolveVaultPath`/`openVault`; falta `VaultPort` real (search/index/embeddings) y `MemoryPort` persistente
-- Peers: sync es mock (`Syncing 64% → Synced`); falta mDNS/WebSocket real y `vault-sync` MCP
-- Sin `cobra`/`viper` aún; `huginn.json` no persiste; `install.ps1` no firma binario
-- `screenshot.png` en repo (79KB) — considerar `docs/` o LFS si crece
+1. `%USERPROFILE%\go\bin` — bin estandar de Go (si existe o se puede crear)
+2. `%LOCALAPPDATA%\Programs\huginn` — fallback en Windows
+3. `/usr/local/bin` o `~/.local/bin` — en Linux/macOS (`go build -o huginn && sudo mv huginn /usr/local/bin/`)
 
-## Próximos pasos
+```powershell
+# directorio personalizado
+$env:HUGINN_INSTALL_DIR="C:\Tools\huginn"; powershell -ExecutionPolicy Bypass -File install.ps1
+```
 
-### A. Migración/refactorización hacia arquitectura hexagonal
-
-Analizar `main.go` y preparar migración progresiva hacia hexagonal. Separar claramente `Domain` (project/agent/memory/vault), `Application` (usecases `AnalyzeProject`, `Chat`), `Infrastructure` (filesystem, mcp, lsp, peers, config), `Ports` (`VaultPort`, `MemoryPort`, `ToolPort`), `Adapters` (stdio/sse/ws, `gopls`). Identificar lógica acoplada a infraestructura (`os.Stat` en `detectProject`, `exec.LookPath` en `agent.go`), invertir dependencias via interfaces (`application/ports`), convertir servicios en casos de uso, aislar `os/exec` y `Vault` externo. Migración incremental, no romper `go test`/`go vet`.
-
-### B. Refactorización general
-
-Revisar nombres (`mcpServers` vs `MCPRepository`), responsabilidades (model 500 líneas), duplicación (`parseArgs` en `main.go` y `internal/cli`), funciones largas (`viewChat` 120 líneas, `Update` 400 líneas), acoplamiento `viewSettings`↔`settingsValues` global, manejo de errores (`huginnError` solo para Vault), validaciones (`isDirectory` Windows `C:\`), config/env/logging.
-
-### C. Implementar scroll y navegación
-
-Revisar scroll vertical/horizontal en `viewChat` (26 filas fijas), `viewSettings` (18 visibles, `settingsOffset`), `viewServers` (12), `viewGraph` (16), `chatBox` (12). Contenedores dinámicos (`chatHistory`, `logs`), autoscroll al recibir `agentReplyMsg`, `pgup/pgdn`, evitar que `input` quede oculto cuando crece `dispatchBox`, posicionamiento al inyectar `prompt` inicial.
-
-### D. Mejorar la experiencia de usuario
-
-Detectar estados de carga (`Connecting` → spinner), vacíos (`No sessions` en `/sessions`), error (`Needs auth` con `Missing NOTION_API_KEY`), feedback (`serversMsg`), progreso (`pct` → barra), mensajes (`modeMessage` genérico), navegación (`TAB` vs `1-6` inconsistente), legibilidad (contraste `colMuted`/`colPanel`), consistencia (header `HUGINN` vs `AGENT VAULT`).
-
-### E. Manejo de errores y resiliencia
-
-Qué pasa si: `opencode` no instalado (`commandAvailable` → `not installed` pero `callAgentCmd` sigue intentando), Vault no responde (`resolveVaultPath` → `not found` pero TUI sigue), `HUGINN_VAULT` inválido, `gopls` `Error`, `peer` `Offline`, prompt vacío, path con espacios `C:\My Project`, `tick` timeout 90s. Implementar retries, timeouts, mensajes `huginnError` consistentes, no panic en `Update`.
-
-### F. Tests
-
-Aumentar cobertura (hoy solo `cli_test.go` 12 tests). Priorizar: 1) `domain/project` (IsDirectory/Detect*), 2) `application/usecases` (orquestador), 3) `infrastructure/mcp` (Restart), 4) `tui` (View render), 5) integración `huginn --help` exit codes. Los tests deben permitir migrar sin romper `huginn "analiza"`.
-
-### G. Documentación técnica
-
-Actualizar `ARCHITECTURE.md` con flujo real `os.Args → cli.ParseArgs → cli.ResolveContext → tui.Run → orchestrator → VaultPort → Agent`, detallar `Domain` (agentes, project), `Application` (usecases), `Infrastructure` (mcp/sse, lsp/stdio, peers/ws), `Ports/Adapters`, dependencias, cómo añadir `huginn memory search` (nuevo port + adapter + usecase + view).
-
-### H. Limpieza del proyecto
-
-Revisar: `assets` no usado (¿mover a `internal/tui/assets`?), `cuervos.svg` (solo ref), `screenshot*.png` (¿a `docs/`?), `install.ps1` duplicado con `go install`, `cli_test.go` root (¿mover a `internal/cli/cli_test.go`?), imports no usados, comentarios desactualizados (`// chat con todos los agentes`), TODOs, `huginn.exe` ignorado pero `huginn-clean.exe` no.
-
-### I. Preparación para futuras funcionalidades
-
-Dejar preparada la estructura para: nuevos módulos (`internal/domain/task`), agentes (`Researcher` real), proveedores IA (`opencode/mimo` ya, añadir `claude`), interfaces (`huginn server` HTTP), adaptadores (`sqlite` para Vault), persistencia intercambiable (`MemoryPort` → `badger`/`postgres`), APIs externas (`github` MCP real), automatizaciones, tests independientes, ejecución local y prod (`HUGINN_ENV`).
-
-No implementar estas funcionalidades mañana salvo que sean necesarias para el refactor. Objetivo: arquitectura preparada.
+```bash
+# Linux / macOS
+go build -o huginn . && mv huginn ~/.local/bin/
+huginn --version
+huginn --help
+```
 
 ---
 
-## Tests / Validación
+### Uso
 
 ```bash
-go vet ./... && go test ./... -count=1 && go build -o huginn.exe . && go build -o huginn-clean.exe ./cmd/huginn
+huginn                              # abre la TUI en el proyecto actual
+huginn .                            # directorio actual explicito
+huginn ./mi-proyecto                # abre con contexto de proyecto
+huginn "analiza este proyecto"      # prompt directo — inyectado al orquestador
+huginn ./mi-proyecto "anade auth"   # proyecto + prompt
+huginn --help                       # ayuda
+huginn --version                    # v0.2.0
 ```
 
-Todo OK al cierre: `vet OK`, `12 tests PASS`, `build OK` (6.7MB).
+Dentro de la TUI:
 
-## Licencia
+| Tecla | Accion |
+|-------|--------|
+| `graph` / `/graph` / `Ctrl+G` | Knowledge Graph a pantalla completa |
+| `/vault` | Asistente de vault (7 pasos) |
+| `Tab` / `1-6` | Cambiar agente (`@chatgpt` `@opencode` `@kilo` `@mimo` `@muse` `@all`) |
+| `Ctrl+P` | Paleta de comandos |
+| `Ctrl+L` | Limpiar |
+| `Enter` | Enviar / Confirmar |
+| `Esc` | Volver |
+| `?` | Ayuda |
 
-No definida — Agent Vault interno.
+Comandos de vault (CLI):
+
+```bash
+huginn vault              # muestra el vault actual
+huginn vault open <path>  # abre un vault existente
+huginn vault create "Mi Vault" ./projects  # crea un vault
+huginn vault list         # lista vaults recientes
+huginn graph              # abre directamente en la vista de grafo
+```
+
+---
+
+### Capturas
+
+Todas las capturas son **renders reales de Go** — `viewChat` `viewVaultWizard` `viewGraph` `viewSettings` `viewServers` `viewStatus` via `lipgloss` ANSI `38;2` preservado, rasterizadas a 2560x1440. No son mocks de Pillow con texto hardcodeado.
+
+<p align="center">
+  <img src="./screenshot_chat.png" width="100%" alt="chat — dashboard a pantalla completa" />
+  <sub><b>Chat</b> — dashboard a pantalla completa 120x36: header HUGINN · AI ORCHESTRATOR · CONNECTED, AGENT DISPATCH (5 agentes), BACKGROUND TASKS, TASK PIPELINE, CONTEXT y prompt <code>explica el vault</code></sub>
+</p>
+
+<table>
+<tr>
+<td width="50%" align="center">
+  <img src="./screenshot_vault.png" width="100%" alt="vault wizard" />
+  <br/><sub><b>Vault</b> — wizard 7 pasos (Path / Name / Purpose / VaultType / Sync / Indexing / Embeddings) con barra 42% y preview <code>memory/ agents/ knowledge/ config.json</code></sub>
+</td>
+<td width="50%" align="center">
+  <img src="./screenshot_graph.png" width="100%" alt="knowledge graph" />
+  <br/><sub><b>Graph</b> — Knowledge Graph 12 nodes / 23 edges interactivo (Agent > Memory/Context/Project > embeddings/session/Task/Knowledge) con focus Memory</sub>
+</td>
+</tr>
+<tr>
+<td width="50%" align="center">
+  <img src="./screenshot_settings.png" width="100%" alt="settings" />
+  <br/><sub><b>Settings</b> — 8 secciones / 36 ajustes: General (4) / Appearance (4) · Theme Dark <code>#33d9f2</code> · Font 14px · AI / Agents / Memory / Tools / Vault / Advanced</sub>
+</td>
+<td width="50%" align="center">
+  <img src="./screenshot_servers.png" width="100%" alt="servers mcp lsp peers" />
+  <br/><sub><b>Servers</b> — MCP (7) · LSP (5) · Peers (4): <code>filesystem/memory/playwright</code> Connected, <code>notion</code> Needs auth, tabs 1:MCP / 2:LSP / 3:Peers</sub>
+</td>
+</tr>
+</table>
+
+<p align="center">
+  <img src="./screenshot_memory.png" width="100%" alt="memory status" />
+  <br/><sub><b>Memory / Status</b> — <code>HUGINN STATUS</code> v0.2.0 · knowledge ready · research ready · agent layer ready · ChatGPT/OpenCode/KiloCode online</sub>
+</p>
+
+<details>
+<summary>Ver todas las capturas en tabla</summary>
+
+| Vista | Archivo | Descripcion |
+|-------|---------|-------------|
+| Chat | `screenshot_chat.png` | Dashboard 120x36, AGENT DISPATCH + BACKGROUND TASKS |
+| Vault | `screenshot_vault.png` | Wizard 7 pasos, 42%, preview de estructura |
+| Graph | `screenshot_graph.png` | 12 nodes / 23 edges / 4 agents synced |
+| Settings | `screenshot_settings.png` | 8 secciones, 36 ajustes, árbol colapsable |
+| Servers | `screenshot_servers.png` | MCP/LSP/Peers con latencias reales |
+| Memory | `screenshot_memory.png` | HUGINN STATUS minimal |
+
+</details>
+
+### Mascota
+
+<p align="center">
+  <img src="./assets/mascot-small.png" width="100%" alt="Huginn mascota — La mirada que todo lo ve" />
+  <br/>
+  <sub><b>Huginn — La mirada que todo lo ve</b> · 8 personalidades pixel art · <i>Huginn vuela, recuerda, conecta mundos</i></sub>
+</p>
+
+Huginn no es solo un TUI — es un cuervo que te acompaña. Cada variante representa un rol del sistema:
+
+| Rol | Personalidad | Descripcion | Uso en HUGINN |
+|-----|--------------|-------------|---------------|
+| Asistente Inteligente | proactivo | Con laptop, te ayuda a encontrar respuestas y automatizar tareas | Chat por defecto (`@all`) |
+| Guía y Explicador | didáctico | Señala y explica paso a paso | `/help` y onboarding |
+| Guardián del Conocimiento | archivista | Con pergamino, guarda y conecta ideas | Vault `memory/` + Knowledge Graph |
+| Observador | vigilante | Ojo en burbuja, observa tu entorno | Context Agent + file watcher |
+| Curioso | inquieto | Con `?`, busca nuevas perspectivas | Research Agent + Perplexity |
+| Paciente | sereno | Con reloj de arena, respeta tu ritmo | Planner + onboarding paso a paso |
+| Leal | compañero | Con corazón, protege tu información | Memory Agent + Vault sync |
+| Sabio | erudito | Con libro `H`, conecta pasado/presente/futuro | Documentation + Knowledge |
+
+Icono `assets/mascot-icon.png` (512x512) para CLI, favicon y `splash` TUI. Original `assets/mascot.png` 1536x1024 pixel art.
+
+---
+
+### Agentes
+
+Huginn incluye multiples backends que cambias con `Tab`:
+
+- **chatgpt** — por defecto, acceso completo para desarrollo
+- **opencode** — adaptador del runtime de opencode
+- **kilo / mimo / Muse** — proveedores adicionales (configurados via MCP)
+- **all** — fan-out a todos los agentes disponibles
+
+Tambien incluye un subagente general para busquedas complejas y tareas multi-paso. Invocalo con `@all` en el chat.
+
+Los agentes estan definidos en `internal/domain/agent/agent.go` y renderizados con color por agente en `internal/tui/styles`.
+
+### Vault
+
+Agent Vault es la capa persistente. Huginn no la duplica — la consume via ports.
+
+```
+.huginn/
+  config.json        # config del vault (nombre, tipo, sync, indexado)
+  vault.json         # id estable (uuid), createdAt
+  agents.json        # agentes registrados
+  memory.jsonl       # log de memoria append-only
+  plugins.json       # manifiesto de plugins
+  state.json         # estado de UI/runtime
+  agents/            # notas por agente
+  memory/            # memoria en markdown
+  plugins/           # plugins
+  cache/ logs/ runtime/  # ignorados por git
+```
+
+Orden de resolucion: `HUGINN_VAULT` > `AGENT_VAULT` > `~/agent-vault` > `~/huginn-vault`. Ver `internal/domain/vault/resolver.go` y `internal/infrastructure/vault/manager.go`.
+
+Deteccion automatica:
+
+| Detecta | Como |
+|---------|------|
+| Proyecto | `go.mod` `package.json` `README.md` `.git` `pyproject.toml` `Cargo.toml` |
+| Package manager | `bun.lockb` > `pnpm-lock.yaml` > `yarn.lock` > `package-lock.json` > `npm` |
+| Vault | variables de entorno anteriores, fallback a filesystem |
+| Config | `huginn.json` / `~/.huginn/config.json` si existe |
+
+### Documentacion
+
+Para arquitectura y estructura, ver [`ARCHITECTURE.md`](./ARCHITECTURE.md).
+
+```
+cmd/huginn/main.go                         # wiring fino: ParseArgs -> ResolveContext -> Run
+internal/cli/cli.go                        # ParseArgs, PrintHelp, ResolveContext
+internal/domain/{project,agent,vault,memory,task,profile}
+internal/application/{orchestrator,personalization,ports,session}
+internal/infrastructure/{config,filesystem,git,memory,profile,runtime,mcp,lsp,peers}
+internal/tui/{app,styles,keymap,components/{header,chat,agents,tasks},views}
+main.go                                    # god file legacy (en migracion a internal/tui)
+```
+
+Verificaciones:
+
+```bash
+go vet ./...
+go test ./... -count=1
+go build ./...
+go build -o huginn.exe . && ./huginn.exe --help
+# dump de capturas reales (sin TUI interactiva)
+go build -o huginn.exe . && ./huginn.exe --dump-ansi
+py render_real.py  # rasteriza screenshot_*.ansi -> screenshot_*.png 2560x1440
+```
+
+### Contribuir
+
+Las contribuciones son bienvenidas. Lee la estructura del proyecto en `ARCHITECTURE.md` antes de enviar un PR.
+
+```bash
+git checkout -b feat/mi-feature
+go vet ./... && go test ./... -count=1 && go build ./...
+git commit -m "feat: mi feature"
+git push origin feat/mi-feature
+```
+
+Manten `domain` libre de dependencias de UI (`lipgloss`, `bubbletea` solo en `internal/tui` / `main.go`) y anade tests para nueva logica de dominio.
+
+### Construyendo sobre Huginn
+
+Si estas construyendo un proyecto que usa "huginn" en su nombre (por ejemplo `huginn-dashboard` o `huginn-mobile`), por favor anade una nota en tu README aclarando que no fue construido por el equipo de Huginn y no esta afiliado a este proyecto.
+
+---
+
+<p align="center">
+  <a href="https://github.com/gpb-codes/huginn-tui">github.com/gpb-codes/huginn-tui</a>
+  <br/>
+  <sub>Generado con Go 1.25 · Bubble Tea v2 · Lipgloss v2 · capturas reales via <code>--dump-ansi</code></sub>
+</p>
