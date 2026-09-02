@@ -46,3 +46,21 @@ func NewOpenCode() *OpenCodeProvider { return &OpenCodeProvider{MockProvider{nam
 func NewKiloCode() *KiloCodeProvider { return &KiloCodeProvider{MockProvider{name: "kilo"}} }
 func (o *OpenCodeProvider) Name() string { return "opencode" }
 func (k *KiloCodeProvider) Name() string { return "kilo" }
+
+// Nuevos providers 2026 — hermes 0.21 + mimo
+type GMIProvider struct{ MockProvider }
+type AzureProvider struct{ MockProvider }
+type MiniMaxProvider struct{ MockProvider }
+type TencentProvider struct{ MockProvider }
+type MuseSparkProvider struct{ MockProvider }
+
+func NewGMI() *GMIProvider             { return &GMIProvider{MockProvider{name: "gmi"}} }
+func NewAzure() *AzureProvider         { return &AzureProvider{MockProvider{name: "azure"}}} 
+func NewMiniMax() *MiniMaxProvider     { return &MiniMaxProvider{MockProvider{name: "minimax"}} }
+func NewTencent() *TencentProvider     { return &TencentProvider{MockProvider{name: "tencent"}} }
+func NewMuseSpark() *MuseSparkProvider { return &MuseSparkProvider{MockProvider{name: "muse-spark"}} }
+func (g *GMIProvider) Name() string         { return "gmi" }
+func (a *AzureProvider) Name() string       { return "azure" }
+func (m *MiniMaxProvider) Name() string     { return "minimax" }
+func (t *TencentProvider) Name() string     { return "tencent" }
+func (m *MuseSparkProvider) Name() string { return "muse-spark" }
