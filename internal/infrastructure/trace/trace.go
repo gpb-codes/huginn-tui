@@ -16,6 +16,8 @@ type Store struct {
 
 func New(vaultPath string) *Store { return &Store{vaultPath: vaultPath} }
 
+func (s *Store) VaultPath() string { return s.vaultPath }
+
 func (s *Store) Append(rec execution.Record) error {
 	if s.vaultPath == "" {
 		return nil

@@ -17,6 +17,9 @@ import (
 
 	"github.com/atotto/clipboard"
 
+	"huginn/internal/bootstrap"
+	agentpkg "huginn/internal/domain/agent"
+	"huginn/internal/domain/execution"
 	vaultpkg "huginn/internal/domain/vault"
 	infravault "huginn/internal/infrastructure/vault"
 	tuicomp "huginn/internal/tui/components"
@@ -534,6 +537,10 @@ type model struct {
 	vaultWizardInput  string
 	vaultWizardCursor int
 	vaultWizardData   vaultConfig
+	// orchestrator app — Registry + Context + Trace
+	orchApp *bootstrap.App
+	// mascot state
+	mascotState string
 }
 
 type vaultConfig struct {
@@ -619,6 +626,11 @@ func initialModelWithContext(projectPath, prompt string) model {
 	// detect pkg manager y vault sin duplicar lógica de Vault (solo referencia)
 	m.pkgManager = detectPackageManager(abs)
 	m.vaultPath, m.vaultOK = resolveVaultPath()
+	// bootstrap orchestrator: Registry + ContextManager + Trace
+	if app, err := bootstrap.New(abs, m.vaultPath); err == nil {
+		m.orchApp = app
+	}
+	m.mascotState = "idle"
 	// si hay prompt directo, lo inyecta como tarea inicial para el orquestador
 	if strings.TrimSpace(prompt) != "" {
 		trim := strings.TrimSpace(prompt)
@@ -824,91 +836,192 @@ type agentReplyMsg struct {
 	Err   error
 }
 
-func callAgentCmd(agent, prompt string) tea.Cmd {
+func callAgentCmd(agent, prompt string, app *bootstrap.App) tea.Cmd {
 	return func() tea.Msg {
-		// fallback inmediato si opencode no está instalado — usa mock local (ChatGPT siempre mock)
+		// fallback inmediato si opencode no está instalado — usa mock local
 		if agent == "ChatGPT" {
 			time.Sleep(500 * time.Millisecond)
 			return agentReplyMsg{Agent: agent, Text: mockReply(agent, prompt)}
 		}
-		opencodeBin := "opencode"
-		if runtime.GOOS == "windows" {
-			if _, err := exec.LookPath("opencode.cmd"); err == nil {
-				opencodeBin = "opencode.cmd"
-			}
+
+		// si hay app, usa Registry + Context + Trace
+		if app != nil && app.Registry != nil {
+			return dispatchViaRegistry(agent, prompt, app)
 		}
-		if !commandAvailable(opencodeBin) && !commandAvailable("opencode") && !commandAvailable("opencode.cmd") {
-			time.Sleep(400 * time.Millisecond)
-			return agentReplyMsg{Agent: agent, Text: mockReply(agent, prompt)}
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-		defer cancel()
-		var model string
-		switch agent {
-		case "ChatGPT":
-			model = "opencode/mimo-v2.5-free"
-		case "OpenCode":
-			model = "opencode/mimo-v2.5-free"
-		case "Mimo Code":
-			model = "opencode/mimo-v2.5-free"
-		case "Kilo Code":
-			model = "opencode/nemotron-3.5-lightning-free"
-		case "Muse Code":
-			model = "opencode/muse-spark-1.2-contributor-free"
-		default:
-			model = "opencode/mimo-v2.5-free"
-		}
-		cmd := exec.CommandContext(ctx, opencodeBin, "run", "-m", model, "--format", "json", prompt)
-		cmd.Dir, _ = os.Getwd()
-		out, err := cmd.CombinedOutput()
-		if ctx.Err() == context.DeadlineExceeded {
-			return agentReplyMsg{Agent: agent, Text: "⏱ timeout 90s — el agente no respondió a tiempo", Err: ctx.Err()}
-		}
-		raw := strings.TrimSpace(string(out))
-		if err != nil && raw == "" {
-			return agentReplyMsg{Agent: agent, Text: fmt.Sprintf("Error %s: %v", agent, err), Err: err}
-		}
-		text := ""
-		for _, line := range strings.Split(raw, "\n") {
-			line = strings.TrimSpace(line)
-			if line == "" {
-				continue
-			}
-			var obj map[string]interface{}
-			if jsonErr := json.Unmarshal([]byte(line), &obj); jsonErr == nil {
-				if typ, ok := obj["type"].(string); ok && typ == "text" {
-					if part, ok := obj["part"].(map[string]interface{}); ok {
-						if t, ok := part["text"].(string); ok {
-							text += t
-						}
-					}
-				}
-				if typ, ok := obj["type"].(string); ok && typ == "error" {
-					if e, ok := obj["error"].(map[string]interface{}); ok {
-						if d, ok := e["data"].(map[string]interface{}); ok {
-							if m, ok := d["message"].(string); ok {
-								text = "Error: " + m
-							}
-						}
-					}
-				}
-			}
-		}
-		if text == "" {
-			text = raw
-			text = strings.ReplaceAll(text, "\x1b[0m", "")
-			text = strings.ReplaceAll(text, "\x1b[90m", "")
-			text = strings.TrimSpace(text)
-			if text == "" {
-				text = fmt.Sprintf("(sin respuesta %s — raw: %d bytes)", agent, len(raw))
-			}
-		}
-		text = strings.TrimSpace(text)
-		if len(text) > 800 {
-			text = text[:800] + " …"
-		}
-		return agentReplyMsg{Agent: agent, Text: text, Err: err}
+
+		// fallback: exec directo (pre-orchestrator)
+		return dispatchViaExec(agent, prompt)
 	}
+}
+
+// dispatchViaRegistry — Fase 7: Registry.SelectProvider → ContextManager.Load → Provider.Invoke → trace.Append
+func dispatchViaRegistry(agentName, prompt string, app *bootstrap.App) agentReplyMsg {
+	start := time.Now()
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+
+	// 1) resolver provider por nombre de agente del chat
+	providerName := mapAgentToProvider(agentName)
+	p, ok := app.Registry.GetProvider(providerName)
+	if !ok || !p.Available(ctx) {
+		// fallback a opencode si no disponible
+		if op, ok2 := app.Registry.GetProvider("opencode"); ok2 && op.Available(ctx) {
+			p = op
+		} else {
+			p, _ = app.Registry.GetProvider("chatgpt")
+			if p == nil {
+				return agentReplyMsg{Agent: agentName, Text: mockReply(agentName, prompt), Err: fmt.Errorf("no provider available")}
+			}
+		}
+	}
+
+	// 2) contexto del vault
+	var vaultCtx string
+	if app.ContextManager != nil {
+		vaultCtx, _ = app.ContextManager.Load()
+	}
+	actx := agentpkg.AgentContext{
+		VaultPath:   app.Trace.VaultPath(),
+		ProjectPath: "",
+		Memory:      []string{vaultCtx},
+	}
+
+	// 3) invocar provider
+	resp, err := p.Invoke(ctx, agentpkg.ProviderRequest{
+		Prompt:  prompt,
+		Context: actx,
+		Meta:    map[string]string{"agent": agentName},
+	})
+
+	// 4) trazabilidad
+	if app.Trace != nil {
+		rec := execution.Record{
+			ExecutionID: fmt.Sprintf("chat-%d", start.UnixMilli()),
+			Agent:       agentName,
+			Provider:    p.Name(),
+			TaskID:      fmt.Sprintf("chat-%d", start.UnixMilli()),
+			TaskType:    "chat",
+			Input:       prompt,
+			Status:      statusFromErr(err),
+			StartedAt:   start,
+		}
+		_ = app.Trace.Append(rec)
+	}
+
+	if err != nil {
+		return agentReplyMsg{Agent: agentName, Text: fmt.Sprintf("Error %s: %v", agentName, err), Err: err}
+	}
+
+	text := strings.TrimSpace(resp.Content)
+	if len(text) > 800 {
+		text = text[:800] + " …"
+	}
+	return agentReplyMsg{Agent: agentName, Text: text}
+}
+
+// dispatchViaExec — fallback pre-orchestrator (exec.Command directo)
+func dispatchViaExec(agent, prompt string) agentReplyMsg {
+	opencodeBin := "opencode"
+	if runtime.GOOS == "windows" {
+		if _, err := exec.LookPath("opencode.cmd"); err == nil {
+			opencodeBin = "opencode.cmd"
+		}
+	}
+	if !commandAvailable(opencodeBin) && !commandAvailable("opencode") && !commandAvailable("opencode.cmd") {
+		time.Sleep(400 * time.Millisecond)
+		return agentReplyMsg{Agent: agent, Text: mockReply(agent, prompt)}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	var model string
+	switch agent {
+	case "ChatGPT":
+		model = "opencode/mimo-v2.5-free"
+	case "OpenCode":
+		model = "opencode/mimo-v2.5-free"
+	case "Mimo Code":
+		model = "opencode/mimo-v2.5-free"
+	case "Kilo Code":
+		model = "opencode/nemotron-3.5-lightning-free"
+	case "Muse Code":
+		model = "opencode/muse-spark-1.2-contributor-free"
+	default:
+		model = "opencode/mimo-v2.5-free"
+	}
+	cmd := exec.CommandContext(ctx, opencodeBin, "run", "-m", model, "--format", "json", prompt)
+	cmd.Dir, _ = os.Getwd()
+	out, err := cmd.CombinedOutput()
+	if ctx.Err() == context.DeadlineExceeded {
+		return agentReplyMsg{Agent: agent, Text: "⏱ timeout 90s — el agente no respondió a tiempo", Err: ctx.Err()}
+	}
+	raw := strings.TrimSpace(string(out))
+	if err != nil && raw == "" {
+		return agentReplyMsg{Agent: agent, Text: fmt.Sprintf("Error %s: %v", agent, err), Err: err}
+	}
+	text := ""
+	for _, line := range strings.Split(raw, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		var obj map[string]interface{}
+		if jsonErr := json.Unmarshal([]byte(line), &obj); jsonErr == nil {
+			if typ, ok := obj["type"].(string); ok && typ == "text" {
+				if part, ok := obj["part"].(map[string]interface{}); ok {
+					if t, ok := part["text"].(string); ok {
+						text += t
+					}
+				}
+			}
+			if typ, ok := obj["type"].(string); ok && typ == "error" {
+				if e, ok := obj["error"].(map[string]interface{}); ok {
+					if d, ok := e["data"].(map[string]interface{}); ok {
+						if m, ok := d["message"].(string); ok {
+							text = "Error: " + m
+						}
+					}
+				}
+			}
+		}
+	}
+	if text == "" {
+		text = raw
+		text = strings.ReplaceAll(text, "\x1b[0m", "")
+		text = strings.ReplaceAll(text, "\x1b[90m", "")
+		text = strings.TrimSpace(text)
+		if text == "" {
+			text = fmt.Sprintf("(sin respuesta %s — raw: %d bytes)", agent, len(raw))
+		}
+	}
+	text = strings.TrimSpace(text)
+	if len(text) > 800 {
+		text = text[:800] + " …"
+	}
+	return agentReplyMsg{Agent: agent, Text: text, Err: err}
+}
+
+func mapAgentToProvider(agent string) string {
+	switch agent {
+	case "ChatGPT":
+		return "chatgpt"
+	case "OpenCode":
+		return "opencode"
+	case "Mimo Code":
+		return "muse-spark"
+	case "Kilo Code":
+		return "kilo"
+	case "Muse Code":
+		return "muse-spark"
+	default:
+		return "opencode"
+	}
+}
+
+func statusFromErr(err error) string {
+	if err != nil {
+		return "error"
+	}
+	return "ok"
 }
 
 func mockReply(agent, userText string) string {
@@ -986,13 +1099,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							targets = []string{t}
 						}
 					}
-					var cmds []tea.Cmd
+				var cmds []tea.Cmd
+					m.mascotState = "thinking"
 					for _, ag := range targets {
 						m.chatHistory = append(m.chatHistory, chatMsg{From: ag, Text: "… escribiendo (real) — llamando " + ag + "…", IsUser: false, Time: now})
-						cmds = append(cmds, callAgentCmd(ag, userText))
-					}
-					m.chatInput = ""
-					m.chatCursor = 0
+					cmds = append(cmds, callAgentCmd(ag, userText, m.orchApp))
+				}
+				m.chatInput = ""
+				m.chatCursor = 0
 					m.chatSuggests = nil
 					if len(cmds) > 0 {
 						return m, tea.Batch(cmds...)
@@ -1713,12 +1827,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						targets = []string{t}
 					}
 				}
-				var cmds []tea.Cmd
-				for _, ag := range targets {
+			var cmds []tea.Cmd
+			m.mascotState = "thinking"
+			for _, ag := range targets {
 					m.chatHistory = append(m.chatHistory, chatMsg{From: ag, Text: "… escribiendo (real) — llamando " + ag + "…", IsUser: false, Time: now})
-					cmds = append(cmds, callAgentCmd(ag, raw))
-				}
-				// lleva al chat y limpia el input — el chat ya muestra el input propio
+				cmds = append(cmds, callAgentCmd(ag, raw, m.orchApp))
+			}
+			// lleva al chat y limpia el input — el chat ya muestra el input propio
 				m.chatInput = ""
 				m.chatCursor = 0
 				m.mode = modeChat
@@ -1821,6 +1936,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case agentReplyMsg:
+		m.mascotState = "idle"
 		replaced := false
 		for i := len(m.chatHistory) - 1; i >= 0; i-- {
 			if m.chatHistory[i].From == msg.Agent && strings.Contains(m.chatHistory[i].Text, "… escribiendo") {
@@ -2074,8 +2190,8 @@ func viewRunning(m model) string {
 
 func viewHelp(m model) string {
 	var rows []string
-	// mascota cabecera — Sabio con libro
-	mascot := tuicomp.RenderMascotSmall()
+	// mascota cabecera — Sabio con libro (sprite PNG)
+	mascot := tuicomp.RenderMascotSprite(tuicomp.StateWise, "")
 	mascotTitle := lipgloss.NewStyle().Foreground(colMuted).Italic(true).Render("Huginn vuela, recuerda, conecta mundos.  — La mirada que todo lo ve")
 	rows = append(rows, mascot, mascotTitle, "")
 	title := lipgloss.NewStyle().Bold(true).Foreground(colAccent).Render("HUGINN commands")
@@ -2130,7 +2246,7 @@ func viewAgents(m model) string {
 
 func viewStatus(m model) string {
 	var rows []string
-	mascot := tuicomp.RenderMascotSmall()
+	mascot := tuicomp.RenderMascotSprite(tuicomp.StateObserving, "")
 	rows = append(rows, mascot, "")
 	title := lipgloss.NewStyle().Bold(true).Foreground(colAccent).Render("HUGINN STATUS")
 	rows = append(rows, title, "")
@@ -2885,8 +3001,12 @@ func viewChat(m model) string {
     agents := []string{"ChatGPT", "OpenCode", "Kilo Code", "Mimo Code", "Muse Code"}
     leftLines := []string{""}
     if len(m.chatHistory) <= 1 {
-        // splash mascota en vacio — Sabio
-        for _, l := range strings.Split(tuicomp.RenderMascotSmall(), "\n") {
+        // splash mascota en vacio — state-based sprite
+        mascotState := tuicomp.StateWise
+        if m.mascotState == "thinking" {
+            mascotState = tuicomp.StateThinking
+        }
+        for _, l := range strings.Split(tuicomp.RenderMascotSprite(mascotState, ""), "\n") {
             if strings.TrimSpace(l) != "" {
                 leftLines = append(leftLines, "  "+l)
             }
