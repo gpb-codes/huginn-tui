@@ -1,12 +1,17 @@
 package skill
 
-// Skill represents a reusable capability.
+// Skill represents a reusable capability — SKILL.md + assets (Hermes/Mimo style).
 type Skill struct {
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Agents      []string `json:"agents"`
-	Tools       []string `json:"tools"`
-	Version     string   `json:"version"`
+	Name         string   `json:"name"`
+	Description  string   `json:"description"`
+	Agents       []string `json:"agents"`
+	Tools        []string `json:"tools"`
+	Version      string   `json:"version"`
+	Environments []string `json:"environments,omitempty"` // kanban, s6, docker — empty = all
+	Trust        string   `json:"trust,omitempty"`        // builtin, trusted, community
+	Tags         []string `json:"tags,omitempty"`
+	UsageCount   int      `json:"usage_count"`
+	LastUsed     string   `json:"last_used,omitempty"`
 }
 
 // Example: coding, debugging, architecture, research, code-review
