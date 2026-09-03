@@ -41,23 +41,23 @@ func pasteFromClipboard() string {
 	return clipboardFallback
 }
 
-// ---------- palette — Obsidian Glass (DESIGN.md) ----------
+// ---------- palette — HUGINN Bronze/Gold ----------
 var (
-	colPanel   = lipgloss.Color("#111827")
-	colPanel2  = lipgloss.Color("#151e2f")
-	colBorder  = lipgloss.Color("#1f2a3a")
-	colBorder2 = lipgloss.Color("#263449")
-	colText    = lipgloss.Color("#e6edf3")
-	colText2   = lipgloss.Color("#9aa8b8")
-	colMuted   = lipgloss.Color("#5b6b82")
-	colMuted2  = lipgloss.Color("#9aa8b8")
-	colAccent  = lipgloss.Color("#22d3ee")
-	colPurple  = lipgloss.Color("#8b5cf6")
-	colWhite   = lipgloss.Color("#e6edf3")
-	colSuccess = lipgloss.Color("#34d399")
-	colRaven   = lipgloss.Color("#5b6b82")
-	colWarn    = lipgloss.Color("#fbbf24")
-	colError   = lipgloss.Color("#f87171")
+	colPanel   = lipgloss.Color("#4D3217")
+	colPanel2  = lipgloss.Color("#4D3217")
+	colBorder  = lipgloss.Color("#634924")
+	colBorder2 = lipgloss.Color("#634924")
+	colText    = lipgloss.Color("#FBE7AE")
+	colText2   = lipgloss.Color("#9D8E69")
+	colMuted   = lipgloss.Color("#634924")
+	colMuted2  = lipgloss.Color("#9D8E69")
+	colAccent  = lipgloss.Color("#E1A451")
+	colPurple  = lipgloss.Color("#CD8D38")
+	colWhite   = lipgloss.Color("#FBE7AE")
+	colSuccess = lipgloss.Color("#E1A451")
+	colRaven   = lipgloss.Color("#634924")
+	colWarn    = lipgloss.Color("#CD8D38")
+	colError   = lipgloss.Color("#CD8D38")
 )
 
 // ---------- agents ----------
@@ -97,7 +97,7 @@ func (s agentStatus) color() color.Color {
 	case statusWorking:
 		return colAccent
 	case statusTesting:
-		return lipgloss.Color("#e8a83e")
+		return lipgloss.Color("#E1A451")
 	default:
 		return colMuted
 	}
@@ -207,7 +207,7 @@ var huginnSettings = []settingsSection{
 
 var settingsValues = map[string]string{
 	"Profile": "gabriel", "Language": "Español", "Timezone": "UTC-3", "Startup behavior": "Restore session",
-	"Theme": "Dark", "Accent color": "#33d9f2", "Font size": "14px", "Chat density": "Comfortable",
+	"Theme": "Dark", "Accent color": "#CD8D38", "Font size": "14px", "Chat density": "Comfortable",
 	"Providers": "OpenCode Zen", "Models": "5 configured", "Default model": "mimo-v2.5-free", "Reasoning": "Enabled", "Token limits": "8k",
 	"Default agent": "OpenCode", "Agent permissions": "Ask", "Agent routing": "Auto", "Max agents": "4", "Execution limits": "90s",
 	"Memory enabled": "On", "Persistent memory": "On", "Auto-save": "On", "Context retrieval": "Hybrid", "Knowledge Graph": "Enabled",
@@ -575,25 +575,25 @@ var graphNodes = []struct {
 	Desc  string
 	Color color.Color
 }{
-	{"Agent", "agent", "Coordinador principal", lipgloss.Color("#9061f9")},
-	{"Memory", "memory", "Memoria persistente 4.2k tokens", lipgloss.Color("#33d9f2")},
-	{"Context", "context", "Contexto activo del proyecto", lipgloss.Color("#e8a83e")},
-	{"Project", "project", "huginn-tui • Go/Bubbletea", lipgloss.Color("#2fd67a")},
-	{"embeddings", "file", "src/memory/embeddings.db", lipgloss.Color("#8b949e")},
-	{"session", "file", "sessions/sess_01JABC.json", lipgloss.Color("#8b949e")},
-	{"Task", "task", "Implement auth with JWT", lipgloss.Color("#e8a83e")},
-	{"Knowledge", "knowledge", "Grafo 23 relaciones", lipgloss.Color("#4a8af4")},
-	{"recent.json", "file", "Memoria reciente", lipgloss.Color("#8b949e")},
-	{"graph.json", "file", "Grafo serializado", lipgloss.Color("#4a8af4")},
-	{"Huginn", "agent", "Orquestador local", lipgloss.Color("#9061f9")},
-	{"vault", "vault", "~/agent-vault • Synced", lipgloss.Color("#2fd67a")},
-	{"index.ts", "file", "src/knowledge/index.ts", lipgloss.Color("#33d9f2")},
-	{"config.yaml", "config", "Vault config", lipgloss.Color("#8b949e")},
-	{"context.md", "context", "Contexto markdown", lipgloss.Color("#e8a83e")},
-	{"reviewer", "agent", "Code review", lipgloss.Color("#e8a83e")},
-	{"architect", "agent", "System design", lipgloss.Color("#9061f9")},
-	{"developer", "agent", "Implementation", lipgloss.Color("#2fd67a")},
-	{"researcher", "agent", "Research", lipgloss.Color("#4a8af4")},
+	{"Agent", "agent", "Coordinador principal", lipgloss.Color("#E1A451")},
+	{"Memory", "memory", "Memoria persistente 4.2k tokens", lipgloss.Color("#CD8D38")},
+	{"Context", "context", "Contexto activo del proyecto", lipgloss.Color("#E1A451")},
+	{"Project", "project", "huginn-tui • Go/Bubbletea", lipgloss.Color("#E1A451")},
+	{"embeddings", "file", "src/memory/embeddings.db", lipgloss.Color("#9D8E69")},
+	{"session", "file", "sessions/sess_01JABC.json", lipgloss.Color("#9D8E69")},
+	{"Task", "task", "Implement auth with JWT", lipgloss.Color("#E1A451")},
+	{"Knowledge", "knowledge", "Grafo 23 relaciones", lipgloss.Color("#CD8D38")},
+	{"recent.json", "file", "Memoria reciente", lipgloss.Color("#9D8E69")},
+	{"graph.json", "file", "Grafo serializado", lipgloss.Color("#CD8D38")},
+	{"Huginn", "agent", "Orquestador local", lipgloss.Color("#E1A451")},
+	{"vault", "vault", "~/agent-vault • Synced", lipgloss.Color("#E1A451")},
+	{"index.ts", "file", "src/knowledge/index.ts", lipgloss.Color("#CD8D38")},
+	{"config.yaml", "config", "Vault config", lipgloss.Color("#9D8E69")},
+	{"context.md", "context", "Contexto markdown", lipgloss.Color("#E1A451")},
+	{"reviewer", "agent", "Code review", lipgloss.Color("#E1A451")},
+	{"architect", "agent", "System design", lipgloss.Color("#E1A451")},
+	{"developer", "agent", "Implementation", lipgloss.Color("#E1A451")},
+	{"researcher", "agent", "Research", lipgloss.Color("#CD8D38")},
 }
 
 func initialModel() model {
@@ -2095,7 +2095,7 @@ func viewInput(m model) string {
 		if m.cursor < len(line) {
 			after = line[m.cursor+1:]
 		}
-		caret := lipgloss.NewStyle().Background(colWhite).Foreground(lipgloss.Color("#0a0c0f")).Render(cursorChar)
+		caret := lipgloss.NewStyle().Background(colWhite).Foreground(lipgloss.Color("#130E0A")).Render(cursorChar)
 		if strings.Contains(before+after, "@") {
 			before = highlightMentions(before)
 			after = highlightMentions(after)
@@ -2174,7 +2174,7 @@ func viewRunning(m model) string {
 	}
 	logStyle := lipgloss.NewStyle().Foreground(colMuted)
 	logsBlock := lipgloss.NewStyle().
-		Background(lipgloss.Color("#0b0d11")).
+		Background(lipgloss.Color("#130E0A")).
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderForeground(colBorder).
 		Padding(1, 2).
@@ -2499,7 +2499,7 @@ func viewServers(m model) string {
 			case "Connected":
 				col = colSuccess
 			case "Needs auth":
-				col = lipgloss.Color("#e8a83e")
+				col = lipgloss.Color("#E1A451")
 			case "Connecting":
 				col = colAccent
 			case "Disabled":
@@ -2711,12 +2711,12 @@ func viewGraph(m model) string {
 		lipgloss.NewStyle().Foreground(colAccent).Render("              ◉ Memory") + lipgloss.NewStyle().Foreground(colMuted).Render("     ") + lipgloss.NewStyle().Foreground(colWarn).Render("● Context") + lipgloss.NewStyle().Foreground(colMuted).Render("     ") + lipgloss.NewStyle().Foreground(colSuccess).Render("○ Project"),
 		lipgloss.NewStyle().Foreground(colBorder).Render("                │            │            │"),
 		lipgloss.NewStyle().Foreground(colBorder).Render("         ┌──────┴──────┐     │     ┌──────┴──────┐"),
-		lipgloss.NewStyle().Foreground(colMuted2).Render("     ● embeddings  ○ session") + lipgloss.NewStyle().Foreground(colBorder).Render("     │     ") + lipgloss.NewStyle().Foreground(colWarn).Render("● Task") + lipgloss.NewStyle().Foreground(colBorder).Render("   ") + lipgloss.NewStyle().Foreground(lipgloss.Color("#4a8af4")).Render("◉ Knowledge"),
+		lipgloss.NewStyle().Foreground(colMuted2).Render("     ● embeddings  ○ session") + lipgloss.NewStyle().Foreground(colBorder).Render("     │     ") + lipgloss.NewStyle().Foreground(colWarn).Render("● Task") + lipgloss.NewStyle().Foreground(colBorder).Render("   ") + lipgloss.NewStyle().Foreground(lipgloss.Color("#CD8D38")).Render("◉ Knowledge"),
 		lipgloss.NewStyle().Foreground(colBorder).Render("         │           │     │     │           │"),
 		lipgloss.NewStyle().Foreground(colBorder).Render("    ┌────┴────┐ ┌────┴────┐│┌────┴────┐ ┌────┴────┐"),
 		lipgloss.NewStyle().Foreground(colMuted2).Render("  ○ recent  ● graph") + lipgloss.NewStyle().Foreground(colPurple).Render("  ◉ Huginn") + lipgloss.NewStyle().Foreground(colSuccess).Render("   ● vault  ○ index.ts"),
 		lipgloss.NewStyle().Foreground(colBorder).Render("    │       │  │       │ │  │       │  │       │"),
-		lipgloss.NewStyle().Foreground(colMuted2).Render("  ○ config ● context") + lipgloss.NewStyle().Foreground(colWarn).Render(" ● reviewer") + lipgloss.NewStyle().Foreground(colPurple).Render(" ● architect") + lipgloss.NewStyle().Foreground(colSuccess).Render(" ○ dev") + lipgloss.NewStyle().Foreground(lipgloss.Color("#4a8af4")).Render(" ● researcher"),
+		lipgloss.NewStyle().Foreground(colMuted2).Render("  ○ config ● context") + lipgloss.NewStyle().Foreground(colWarn).Render(" ● reviewer") + lipgloss.NewStyle().Foreground(colPurple).Render(" ● architect") + lipgloss.NewStyle().Foreground(colSuccess).Render(" ○ dev") + lipgloss.NewStyle().Foreground(lipgloss.Color("#CD8D38")).Render(" ● researcher"),
 	}
 	// resalta línea que contiene el nodo seleccionado
 	sel := graphNodes[m.graphCursor]
@@ -2969,7 +2969,7 @@ func viewChat(m model) string {
                 case statusDone:
                     return "READY", colSuccess
                 case statusTesting:
-                    return "REVIEW", lipgloss.Color("#e8a83e")
+                    return "REVIEW", lipgloss.Color("#E1A451")
                 default:
                     return "READY", colSuccess
                 }
@@ -2993,7 +2993,7 @@ func viewChat(m model) string {
                 after = inputLine[m.chatCursor+1:]
             }
         }
-        caret := lipgloss.NewStyle().Background(colWhite).Foreground(lipgloss.Color("#0a0c0f")).Render(cur)
+        caret := lipgloss.NewStyle().Background(colWhite).Foreground(lipgloss.Color("#130E0A")).Render(cur)
         inputLine = lipgloss.NewStyle().Foreground(colWhite).Render(before) + caret + lipgloss.NewStyle().Foreground(colWhite).Render(after)
     }
     _ = lipgloss.NewStyle().Foreground(colAccent).Render("> ") + inputLine
@@ -3060,9 +3060,9 @@ func viewChat(m model) string {
                     case "Kilo Code":
                         col = colSuccess
                     case "Mimo Code":
-                        col = lipgloss.Color("#f59e0b")
+                        col = lipgloss.Color("#E1A451")
                     case "Muse Code":
-                        col = lipgloss.Color("#e8a83e")
+                        col = lipgloss.Color("#E1A451")
                     case "Hugin":
                         col = colWarn
                     }

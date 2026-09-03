@@ -2,29 +2,29 @@ package styles
 
 import "charm.land/lipgloss/v2"
 
-// Obsidian Glass — tokens premium para HUGINN TUI
+// HUGINN Bronze/Gold palette — premium warm theme
 var (
 	// Base
-	Bg      = lipgloss.Color("#080c14")
-	Panel   = lipgloss.Color("#111827")
-	Panel2  = lipgloss.Color("#151e2f")
-	Border  = lipgloss.Color("#1f2a3a")
-	Border2 = lipgloss.Color("#263449")
+	Bg      = lipgloss.Color("#130E0A")
+	Panel   = lipgloss.Color("#4D3217")
+	Panel2  = lipgloss.Color("#4D3217")
+	Border  = lipgloss.Color("#634924")
+	Border2 = lipgloss.Color("#634924")
 
 	// Texto
-	Text  = lipgloss.Color("#e6edf3")
-	Text2 = lipgloss.Color("#9aa8b8")
-	Muted = lipgloss.Color("#5b6b82")
+	Text  = lipgloss.Color("#FBE7AE")
+	Text2 = lipgloss.Color("#9D8E69")
+	Muted = lipgloss.Color("#634924")
 
 	// Acentos
-	Accent  = lipgloss.Color("#22d3ee") // cian
-	Accent2 = lipgloss.Color("#8b5cf6") // purpura
+	Accent  = lipgloss.Color("#E1A451") // amber
+	Accent2 = lipgloss.Color("#CD8D38") // orange
 
-	Success = lipgloss.Color("#34d399")
-	Warn    = lipgloss.Color("#fbbf24")
-	Error   = lipgloss.Color("#f87171")
+	Success = lipgloss.Color("#E1A451")
+	Warn    = lipgloss.Color("#CD8D38")
+	Error   = lipgloss.Color("#CD8D38")
 
-	// Compat alias para migración gradual desde main.go
+	// Compat alias para migracion gradual desde main.go
 	ColPanel  = Panel
 	ColAccent = Accent
 	ColPurple = Accent2

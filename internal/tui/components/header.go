@@ -8,14 +8,14 @@ import (
 )
 
 var (
-	colPanel   = lipgloss.Color("#111317")
-	colBorder  = lipgloss.Color("#1c232e")
-	colText    = lipgloss.Color("#e7ecf2")
-	colMuted   = lipgloss.Color("#5c6672")
-	colRaven   = lipgloss.Color("#5f5f87")
-	colPurple  = lipgloss.Color("#9061f9")
-	colWhite   = lipgloss.Color("#f4f6f8")
-	colSuccess = lipgloss.Color("#2fd67a")
+	colPanel   = lipgloss.Color("#4D3217")
+	colBorder  = lipgloss.Color("#634924")
+	colText    = lipgloss.Color("#FBE7AE")
+	colMuted   = lipgloss.Color("#9D8E69")
+	colRaven   = lipgloss.Color("#634924")
+	colPurple  = lipgloss.Color("#E1A451")
+	colWhite   = lipgloss.Color("#FBE7AE")
+	colSuccess = lipgloss.Color("#E1A451")
 )
 
 // HeaderProps holds data needed for header rendering (extracted from main.go God file).

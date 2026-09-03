@@ -122,7 +122,7 @@ func (m *MascotComponent) View() string {
 
 	if m.thought != "" {
 		border := strings.Repeat("─", len(m.thought)+2)
-		purple := lipgloss.NewStyle().Foreground(lipgloss.Color("#BD93F9"))
+		purple := lipgloss.NewStyle().Foreground(lipgloss.Color("#E1A451"))
 		sb.WriteString(purple.Render("┌" + border + "┐\n"))
 		sb.WriteString(purple.Render("│ " + m.thought + " │\n"))
 		sb.WriteString(purple.Render("└" + border + "┘\n"))
@@ -132,7 +132,7 @@ func (m *MascotComponent) View() string {
 		sb.WriteString(m.renderImageToText(img))
 	} else {
 		for _, l := range mascotSabio {
-			sb.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#5b6b82")).Render(l) + "\n")
+			sb.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#634924")).Render(l) + "\n")
 		}
 	}
 	return sb.String()
@@ -142,7 +142,7 @@ func (m *MascotComponent) View() string {
 
 // RenderMascotSmall — ASCII del cuervo sabio (fallback / splash rapido)
 func RenderMascotSmall() string {
-	style := lipgloss.NewStyle().Foreground(lipgloss.Color("#5b6b82"))
+	style := lipgloss.NewStyle().Foreground(lipgloss.Color("#634924"))
 	out := ""
 	for _, l := range mascotSabio {
 		out += style.Render(l) + "\n"

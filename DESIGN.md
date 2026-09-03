@@ -1,33 +1,28 @@
 # HUGINN — Design System
 
-> Premium, fluido, obsesivo con el detalle. Inspirado en Linear + Raycast + Obsidian.
+> Premium, fluido, obsesivo con el detalle. Bronce y oro cálido.
 
 ## 1. Principios
 
 - **Denso pero respirable:** 120x36 siempre, pero con aire entre grupos. Nada de cajas vacías.
 - **Fluido > bonito:** 60fps, transiciones 150ms, sin flicker. Lo premium se siente, no se ve.
-- **Glass + Depth:** paneles con blur sutil, bordes 1px, sombras suaves. Profundidad real, no flat.
-- **Color con propósito:** solo acentos guían la atención. El resto es gris frío.
+- **Bronze + Gold:** paneles cálidos, bordes bronce, acentos ámbar. Calidez real, no flat.
+- **Color con propósito:** solo acentos guían la atención. El resto es bronce oscuro.
 
 ## 2. Paleta
 
-Base oscuro frío, no negro puro.
+Bronce oscuro cálido, gradients de oro.
 
 | Token | Hex | Uso |
 |-------|-----|-----|
-| `bg` | `#080c14` | canvas |
-| `panel` | `#111827` | paneles principales |
-| `panel-2` | `#151e2f` | panel secundario / hover |
-| `border` | `#1f2a3a` | bordes 1px |
-| `border-2` | `#263449` | bordes foco |
-| `text` | `#e6edf3` | texto primario |
-| `text-2` | `#9aa8b8` | secundario |
-| `muted` | `#5b6b82` | terciario / placeholder |
-| `accent` | `#22d3ee` | cian — acciones, focus, links |
-| `accent-2` | `#8b5cf6` | púrpura — agentes, highlights |
-| `success` | `#34d399` | conectado, ok |
-| `warn` | `#fbbf24` | atención |
-| `error` | `#f87171` | error |
+| `bg` | `#130E0A` | canvas |
+| `surface` | `#4D3217` | paneles principales |
+| `bronze` | `#634924` | bordes, muted |
+| `gold-dark` | `#976629` | accent oscuro |
+| `amber` | `#E1A451` | acentos, highlights |
+| `orange` | `#CD8D38` | secondary, warn, error |
+| `light` | `#FBE7AE` | texto primario |
+| `text` | `#9D8E69` | texto secundario |
 
 Gradientes solo en acentos: `purple→cyan` para HUGINN wordmark, nunca en fondos.
 
