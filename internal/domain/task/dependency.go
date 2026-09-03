@@ -1,3 +1,4 @@
+// © 2026 Gabriel Pedreros — Todos los derechos reservados (ver LICENSE).
 package task
 
 // Dependency describes that a Task depends on another.

@@ -1,3 +1,4 @@
+// © 2026 Gabriel Pedreros — Todos los derechos reservados (ver LICENSE).
 package tui
 
 // Package tui contendrá el runtime de Huginn (model, Update, View).

@@ -1,3 +1,4 @@
+// © 2026 Gabriel Pedreros — Todos los derechos reservados (ver LICENSE).
 package tui
 
 // Keymap centralizes keybindings (future: help view).

@@ -1,3 +1,4 @@
+// © 2026 Gabriel Pedreros — Todos los derechos reservados (ver LICENSE).
 package config
 
 // Settings tree — single source of truth for ⚙ Settings UI.

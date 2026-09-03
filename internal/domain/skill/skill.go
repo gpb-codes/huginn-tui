@@ -1,3 +1,4 @@
+// © 2026 Gabriel Pedreros — Todos los derechos reservados (ver LICENSE).
 package skill
 
 // Skill represents a reusable capability — SKILL.md + assets (Hermes/Mimo style).
