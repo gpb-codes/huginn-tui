@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-// Role controla si un hijo puede delegar más
+// Role indica si un hijo puede seguir delegando.
 type Role string
 
 const (
@@ -14,7 +14,7 @@ const (
 	RoleOrchestrator Role = "orchestrator"
 )
 
-// Delegate — fork de subagente con contexto heredado (Claude fork mode)
+// Delegate bifurca subagentes con contexto heredado (modo fork de Claude).
 type Delegate struct {
 	mu            sync.Mutex
 	maxDepth      int

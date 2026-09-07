@@ -1,0 +1,24 @@
+<div class="privacy">
+  <h2><span class="dot">●</span> Privacidad local-first</h2>
+  <ul>
+    <li>
+      <strong>Modelos locales:</strong> Ollama corre en tu máquina (API local
+      <code>/api/tags</code> y <code>/api/generate</code>). Investigar, razonar y documentar
+      no requiere crear cuentas ni enviar tu código a terceros.
+    </li>
+    <li>
+      <strong>Tus datos se quedan contigo:</strong> el vault vive en tu disco
+      (<code>.huginn/</code>). Resolución: <code>HUGINN_VAULT</code> ›
+      <code>AGENT_VAULT</code> › <code>~/agent-vault</code> › <code>~/huginn-vault</code>.
+    </li>
+    <li>
+      <strong>Sin respuestas inventadas:</strong> si no hay provider disponible, Huginn lo dice
+      con un error honesto. Nunca finge éxitos ni inventa respuestas.
+    </li>
+    <li>
+      <strong>Secretos protegidos:</strong> la traza (<code>executions.jsonl</code>) redacta
+      <code>API_KEY</code>, <code>TOKEN</code>, <code>PASSWORD</code> y <code>SECRET</code>, y los
+      procesos hijo reciben un entorno mínimo.
+    </li>
+  </ul>
+</div>

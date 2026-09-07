@@ -7,9 +7,9 @@ import (
 	"strings"
 )
 
-// IsDirectory reports whether p is an existing directory.
-// Used by CLI to distinguish `huginn <path>` vs `huginn "<prompt>"`.
-// Handles Windows quoted args and C:\ paths.
+// IsDirectory indica si p es un directorio existente.
+// Usado por el CLI para distinguir `huginn <path>` de `huginn "<prompt>"`.
+// Tolera argumentos entrecomillados de Windows y rutas C:\.
 func IsDirectory(p string) bool {
 	if p == "" {
 		return false
@@ -23,7 +23,7 @@ func IsDirectory(p string) bool {
 	return info.IsDir()
 }
 
-// DetectPackageManager inspects lockfiles in root and returns "bun" | "pnpm" | "yarn" | "npm" | "".
+// DetectPackageManager inspecciona los lockfiles de root y devuelve "bun" | "pnpm" | "yarn" | "npm" | "".
 func DetectPackageManager(root string) string {
 	if _, err := os.Stat(filepath.Join(root, "bun.lockb")); err == nil {
 		return "bun"
@@ -43,7 +43,7 @@ func DetectPackageManager(root string) string {
 	return ""
 }
 
-// DetectProject checks for project markers; returns true and the marker that was found.
+// DetectProject busca marcadores de proyecto y devuelve si lo es más el marcador hallado.
 func DetectProject(root string) (bool, string) {
 	markers := []string{"go.mod", "package.json", "pyproject.toml", "Cargo.toml", "README.md", ".git", "AGENTS.md", "huginn.json", "huginn.config.json"}
 	for _, m := range markers {

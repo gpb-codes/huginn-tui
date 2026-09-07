@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 )
 
-// Layers — memoria 4 capas Mimo: project MEMORY.md, checkpoint.md, scratch notes.md, history FTS5 (via executions.jsonl)
+// Layers gestiona la memoria Mimo de 4 capas: MEMORY.md, checkpoint, notas e historial.
 type Layers struct{ base string }
 
 func NewLayers(base string) *Layers { return &Layers{base: base} }

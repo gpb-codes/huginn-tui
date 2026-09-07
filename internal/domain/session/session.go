@@ -3,7 +3,7 @@ package session
 
 import "time"
 
-// Session represents a Huginn execution.
+// Session representa una ejecución de Huginn.
 type Session struct {
 	ID        string    `json:"id"`
 	Project   string    `json:"project"`

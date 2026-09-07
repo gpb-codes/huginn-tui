@@ -1,82 +1,74 @@
-# Huginn — Clean Architecture (Hexagonal)
+# Huginn — Arquitectura limpia (rebuild 2026-09)
+
+> Rebuild completo desde cero (2026-09): TUI minimalista, domain puro, eventos desacoplados.
+> Ver `docs/architecture/overview.md`, `docs/agents.md`.
 
 ```
-                HUGINN
-                  │
-        ┌─────────┴─────────┐
-        │                   │
-      CLI                 UI (TUI)
-        │                   │
-        └─────────┬─────────┘
-                  │
-            Orchestrator (application)
-                  │
-        ┌─────────┼─────────┐
-        │         │         │
-     Planner    Coder    Researcher  (domain)
-        │         │         │
-        └─────────┼─────────┘
-                  │
-             Agent Vault (ports)
-                  │
-        ┌─────────┼─────────┐
-        │         │         │
-     Memory     Files    Knowledge  (infrastructure)
+                         USER
+                           │
+                           ▼
+                        HUGINN
+                           │
+                  ┌────────┴────────┐
+                  │                 │
+              PLANNER           CONTEXT
+                  │                 │
+                  └────────┬────────┘
+                           │
+                     AGENT ROUTER
+                           │
+          ┌────────────────┼────────────────┐
+          │                │                │
+       OpenCode         Hermes           Kilo
+          │                │                │
+          └────────────────┼────────────────┘
+                           │
+                         RESULT
 ```
 
 ## Capas y regla de dependencia
 
 ```
-cmd/huginn       →  internal/cli  →  internal/application  →  internal/domain
-internal/tui     →  internal/application  →  internal/domain  ←  internal/infrastructure
+cmd/huginn      →  internal/tui  →  internal/events  →  internal/domain
+internal/tui    →  internal/cli  →  internal/domain  ←  internal/infrastructure
 ```
 
-`domain` nunca importa `lipgloss`, `os` solo donde es necesario, ni `infrastructure`. `application/ports` define interfaces (`VaultPort`, `MemoryPort`, `ToolPort` en `internal/application/ports/ports.go:1`), `infrastructure` las implementa.
+`domain` nunca importa `lipgloss`/`bubbletea` ni `infrastructure`. `events` es pub/sub tipado sin dependencias. `tui` solo renderiza y envía comandos; todo `exec` vive en `infrastructure/agents`.
 
-## Estructura actual (implementada)
+## Estructura actual (rebuild)
 
 ```
-cmd/huginn/main.go                  # wiring fino, solo parseArgs → ResolveContext → Run
-internal/
-  cli/cli.go                        # ParseArgs, PrintHelp, HuginnError, ResolveContext (delega a domain)
-  domain/
-    project/detector.go             # IsDirectory, DetectPackageManager, DetectProject
-    agent/agent.go                  # Agent, Status, BackendAgent, CommandAvailable
-    vault/resolver.go               # ResolveVaultPath (env > ~/agent-vault)
-    memory/memory.go                # Entry (domain, sin persistencia)
-  application/
-    ports/ports.go                  # VaultPort, MemoryPort, ToolPort
-    usecases/                       # (reservado) AnalyzeProject, Chat
-  infrastructure/
-    config/settings.go              # Sections, Values (⚙ Settings)
-    mcp/servers.go                  # MCP servers (stdio/sse/ws)
-    lsp/servers.go                  # LSP servers
-    peers/peers.go                  # Peers, LocalPeerID/Hostname
-  tui/                              # (en migración) model, views — actualmente en root main.go:460
+main.go                          # entrada fina: delega a internal/tui
+cmd/huginn/main.go               # entrada fina: delega a internal/tui
+cmd/huginn-bot/main.go           # bot: 127.0.0.1:8765 /health /status /chat
+internal/tui/app.go              # Model minimalista — homescreen centrada
+internal/tui/main.go             # ParseArgs → ResolveContext → Run
+internal/tui/styles/tokens.go    # Design system: Bg #130E0A, Accent #CD8D38, dark-first
+internal/cli/cli.go              # ParseArgs, PrintHelp, ResolveContext
+internal/events/bus.go           # Bus tipado: TaskCreated, AgentMessage…
+internal/domain/task/status.go   # PENDING PLANNING RUNNING WAITING COMPLETED FAILED CANCELLED
+internal/domain/agent/           # Agent, Capability (coding/research…), Provider
+internal/domain/{plan,execution,project,vault,memory,session,skill}
+internal/application/{planner,router,evaluator,orchestrator/pipeline,agents}
+internal/infrastructure/{agents,models,config,memory,vault,security,…}
+install/{install.sh,install.ps1}
+packaging/{npm,brew,aur}   landing/ (Astro)
 ```
 
-Legacy `main.go:1` (2800 líneas) sigue funcionando (`go run .`) pero es **strangler**: la nueva entrada limpia es `go run ./cmd/huginn` o `go build -o huginn ./cmd/huginn`. Migración incremental sin reescribir todo de golpe.
+TUI: homescreen con `H  U  G  I  N  N` centrado, input `> Ask Huginn…` y `Type / for commands`. Comandos `/help /agents /tasks…` responden con mensajes honestos — nunca fingen éxito. Navegación futura (Dashboard/Agents/Tasks…) se añadirá progresivamente.
 
 ## Por qué esta estructura
 
-- **CLI fina** (`internal/cli`) — solo parsing y detección de contexto, sin lógica de negocio. Preparada para `huginn chat/agent/memory/vault/config` (`cli.go:22` FutureSubcommands).
-- **Domain puro** — `project` y `vault` no dependen de `bubbletea`; testeables (`cli_test.go` usa `project.IsDirectory`).
-- **Ports & Adapters** — Huginn no duplica Agent Vault; lo consume vía `ports.VaultPort`. Cambiar de filesystem a API no toca domain.
-- **Infraestructura reemplazable** — MCP/LSP/Peers son adaptadores; se pueden mockear en tests.
-
-## Próximos pasos (sin romper)
-
-1. Mover `main.go:460` (model) + `View:1587` + `viewServers:1926` a `internal/tui/` (ya existe el directorio).
-2. Extraer `orchestrator` (`advance:1556`) a `internal/application/usecases/orchestrator.go`.
-3. Hacer que `cmd/huginn/main.go` llame a `tui.Run(ctx)` en vez de imprimir stub.
-4. Añadir `internal/infrastructure/config` con `~/.huginn/config.json` persistente.
+- **CLI fina** — solo parsing. FutureSubcommands preparados sin lógica de negocio.
+- **Domain puro** — `task` con 7 estados + `IsTerminal/IsActive`, `project` sin UI, testeable.
+- **Events desacoplado** — `internal/events` sin deps, para logs, UI real-time y observabilidad.
+- **TUI separada** — `tui/app.go` no importa `infrastructure`; el orquestador es intercambiable.
+- **Agent desacoplado** — `Agent {ID, Name, Capabilities, Execute()}` + routing por `Capability`, jamás `if agent == "opencode"`.
 
 ## Uso
 
 ```bash
-go vet ./... && go test ./...
-go run ./cmd/huginn --help
-go run ./cmd/huginn --version
-go run ./cmd/huginn . "analiza este proyecto"
-go build -o huginn ./cmd/huginn && ./huginn --help  # Windows: huginn.exe
+go vet ./... && go test ./... -count=1 && go build ./...
+go run . --help
+go run . --dump-ansi   # dump del homescreen
 ```

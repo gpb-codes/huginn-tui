@@ -11,7 +11,7 @@ import (
 	"huginn/internal/domain/vault"
 )
 
-// Args parsed from os.Args.
+// Args agrupa los argumentos parseados desde os.Args.
 type Args struct {
 	Path       string
 	Prompt     string
@@ -172,8 +172,8 @@ func HuginnError(msg string, debug bool, err error) {
 	}
 }
 
-// ResolveContext is the application use-case: path → project context.
-// Delegates to domain/project and domain/vault, no duplication.
+// ResolveContext es el caso de uso de aplicación: path → contexto de proyecto.
+// Delega en domain/project y domain/vault sin duplicar lógica.
 func ResolveContext(projectPath string) (abs string, pkgManager string, vaultPath string, vaultOK bool, err error) {
 	abs, err = filepath.Abs(projectPath)
 	if err != nil {

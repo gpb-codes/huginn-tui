@@ -1,21 +1,21 @@
 // © 2026 Gabriel Pedreros — Todos los derechos reservados (ver LICENSE).
 package skill
 
-// Skill represents a reusable capability — SKILL.md + assets (Hermes/Mimo style).
+// Skill representa una capacidad reutilizable: SKILL.md más recursos (estilo Hermes/Mimo).
 type Skill struct {
 	Name         string   `json:"name"`
 	Description  string   `json:"description"`
 	Agents       []string `json:"agents"`
 	Tools        []string `json:"tools"`
 	Version      string   `json:"version"`
-	Environments []string `json:"environments,omitempty"` // kanban, s6, docker — empty = all
-	Trust        string   `json:"trust,omitempty"`        // builtin, trusted, community
+	Environments []string `json:"environments,omitempty"` // kanban, s6, docker; vacío = todos
+	Trust        string   `json:"trust,omitempty"`        // builtin, trusted o community
 	Tags         []string `json:"tags,omitempty"`
 	UsageCount   int      `json:"usage_count"`
 	LastUsed     string   `json:"last_used,omitempty"`
 }
 
-// Example: coding, debugging, architecture, research, code-review
+// Builtin agrupa skills de ejemplo: coding, debugging, architecture, research y code-review.
 var Builtin = []Skill{
 	{Name: "coding", Description: "Write and refactor code", Agents: []string{"coder"}, Tools: []string{"filesystem", "shell"}},
 	{Name: "debugging", Description: "Diagnose and fix bugs", Agents: []string{"coder", "researcher"}, Tools: []string{"filesystem", "shell", "git"}},

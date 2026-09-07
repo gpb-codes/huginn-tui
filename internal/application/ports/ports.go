@@ -3,15 +3,15 @@ package ports
 
 import "context"
 
-// VaultPort is the hexagonal port for Agent Vault.
-// Huginn talks to Vault only through this interface — no direct filesystem/DB code in domain/app.
+// VaultPort es el puerto hexagonal del Vault de agentes.
+// Huginn solo habla con el Vault por esta interfaz, sin ficheros ni DB directos en dominio/app.
 type VaultPort interface {
 	Path() string
 	Exists(ctx context.Context) bool
 	Search(ctx context.Context, query string) ([]string, error)
 }
 
-// ToolPort abstracts MCP/LSP tools.
+// ToolPort abstrae las herramientas MCP/LSP.
 type ToolPort interface {
 	Name() string
 	Status() string

@@ -46,7 +46,7 @@ func TestGraph_TopologicalOrder(t *testing.T) {
 
 func TestGraph_TopologicalOrder_Complex(t *testing.T) {
 	g := NewGraph()
-	// Research -> Architecture -> Implementation -> Tests -> Review
+	// Cadena: Research -> Architecture -> Implementation -> Tests -> Review
 	tasks := []Task{
 		New("1", "Research", "", "researcher"),
 		New("2", "Architecture", "", "planner", "1"),
@@ -61,7 +61,7 @@ func TestGraph_TopologicalOrder_Complex(t *testing.T) {
 	if len(order) != 5 {
 		t.Fatalf("expected 5")
 	}
-	// ensure dependencies before dependents
+	// Verifica que cada dependencia preceda a sus dependientes.
 	pos := map[string]int{}
 	for i, tt := range order {
 		pos[tt.ID] = i

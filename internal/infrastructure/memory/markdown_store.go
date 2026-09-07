@@ -15,10 +15,8 @@ import (
 	"huginn/internal/domain/memory"
 )
 
-// MarkdownStore implements ports.MemoryPort using Markdown + frontmatter on filesystem.
-// Source of truth: Markdown files in ~/.huginn/memory/*.md
-// Index: ~/.huginn/memory/index.jsonl (rebuildable)
-// Events: ~/.huginn/events.jsonl (append-only)
+// MarkdownStore implementa ports.MemoryPort con Markdown y frontmatter en disco.
+// Fuente de verdad: ~/.huginn/memory/*.md; índice reconstruible e historial append-only.
 type MarkdownStore struct {
 	BaseDir string // ~/.huginn
 }
@@ -39,7 +37,7 @@ func (s *MarkdownStore) ensureDirs() error {
 	return os.MkdirAll(s.memoryDir(), 0755)
 }
 
-// Save writes a Memory as Markdown with frontmatter.
+// Save escribe una Memory como Markdown con frontmatter.
 func (s *MarkdownStore) Save(ctx context.Context, m memory.Memory) error {
 	if err := s.ensureDirs(); err != nil {
 		return err
@@ -60,7 +58,7 @@ func (s *MarkdownStore) Save(ctx context.Context, m memory.Memory) error {
 		return err
 	}
 	defer f.Close()
-	// frontmatter
+	// Escribe la cabecera frontmatter.
 	fmt.Fprintln(f, "---")
 	fmt.Fprintf(f, "id: %s\n", m.ID)
 	fmt.Fprintf(f, "type: %s\n", m.Type)
@@ -78,7 +76,7 @@ func (s *MarkdownStore) Save(ctx context.Context, m memory.Memory) error {
 	fmt.Fprintln(f, "")
 	fmt.Fprintf(f, "# %s\n\n", m.Title)
 	fmt.Fprintln(f, m.Content)
-	// update index
+	// Actualiza índice y eventos.
 	_ = s.appendIndex(m)
 	_ = s.appendEvent("memory.created", m.ID)
 	return nil
@@ -163,7 +161,7 @@ func (s *MarkdownStore) Delete(_ context.Context, id string) error {
 	return nil
 }
 
-// IndexEntry is a line in index.jsonl
+// IndexEntry es una línea de index.jsonl.
 type IndexEntry struct {
 	ID         string  `json:"id"`
 	File       string  `json:"file"`
@@ -206,7 +204,7 @@ func (s *MarkdownStore) appendEvent(event, memoryID string) error {
 	return err
 }
 
-// RebuildIndex reconstructs index.jsonl from Markdown files.
+// RebuildIndex reconstruye index.jsonl desde los ficheros Markdown.
 func (s *MarkdownStore) RebuildIndex() error {
 	all, _ := s.List(context.Background(), "")
 	_ = os.Remove(s.indexPath())
@@ -216,7 +214,7 @@ func (s *MarkdownStore) RebuildIndex() error {
 	return nil
 }
 
-// Errors
+// Errores públicos del store.
 var (
 	ErrNotFound       = fmt.Errorf("not found")
 	ErrInvalidInput   = fmt.Errorf("invalid input")
@@ -237,7 +235,7 @@ func assertNoSecrets(content string) error {
 }
 
 func parseMarkdown(id, content string) (*memory.Memory, error) {
-	// very simple frontmatter parser: between --- ... ---
+	// Parser mínimo de frontmatter entre delimitadores ---.
 	m := &memory.Memory{ID: id}
 	lines := strings.Split(content, "\n")
 	inFront := false
@@ -267,7 +265,7 @@ func parseMarkdown(id, content string) (*memory.Memory, error) {
 			fmt.Sscanf(strings.TrimSpace(strings.TrimPrefix(l, "confidence:")), "%f", &m.Confidence)
 		}
 	}
-	// title is first # line
+	// El título es la primera línea con #.
 	for _, l := range bodyLines {
 		if strings.HasPrefix(strings.TrimSpace(l), "# ") {
 			m.Title = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(l), "# "))
@@ -275,17 +273,17 @@ func parseMarkdown(id, content string) (*memory.Memory, error) {
 		}
 	}
 	m.Content = strings.Join(bodyLines, "\n")
-	// try to get updated from file? use now
+	// Usa la hora actual como marca de actualización.
 	m.UpdatedAt = time.Now()
 	m.CreatedAt = m.UpdatedAt
-	// tags not parsed fully for brevity
+	// Omite el parseo completo de tags por brevedad.
 	return m, nil
 }
 
-// Ensure implements ports.MemoryPort
+// La guarda siguiente garantiza que MarkdownStore implementa ports.MemoryPort.
 var _ = (*MarkdownStore)(nil)
 
-// Helper to read index without loading all markdown
+// ReadIndex lee el índice sin cargar todos los ficheros.
 func (s *MarkdownStore) ReadIndex() ([]IndexEntry, error) {
 	f, err := os.Open(s.indexPath())
 	if err != nil {

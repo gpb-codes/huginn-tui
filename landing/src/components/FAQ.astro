@@ -1,0 +1,56 @@
+<details class="faq" open>
+  <summary>¿Qué necesito para usar Huginn?</summary>
+  <div class="a">
+    El binario (o compilar con <code>go build -o huginn .</code>) y al menos un runtime:
+    la CLI de <code>opencode</code> para coding y <code>Ollama</code> en local para
+    research/reasoning/docs. Si falta un provider, Huginn devuelve un error honesto en vez de inventar una respuesta.
+  </div>
+</details>
+<details class="faq">
+  <summary>¿En qué plataformas funciona?</summary>
+  <div class="a">
+    Windows, Linux y macOS. El instalador <code>curl</code> cubre Linux/macOS/WSL y en Windows
+    se instala con <code>install.ps1</code>.
+  </div>
+</details>
+<details class="faq">
+  <summary>¿Qué hace exactamente <code>/plan</code>?</summary>
+  <div class="a">
+    El Neural Engine analiza tu objetivo, lo clasifica, estima complejidad/riesgo y lo descompone
+    en un DAG con niveles paralelos. El router asigna cada tarea al runtime con mejor capacidad,
+    y el evaluador decide éxito, reintento acotado, una ronda de replanificación o pedir tu aprobación.
+  </div>
+</details>
+<details class="faq">
+  <summary>¿Dónde se guardan mis datos?</summary>
+  <div class="a">
+    En tu disco, dentro de <code>.huginn/</code> (<code>config.json</code>, <code>vault.json</code>,
+    <code>agents.json</code>, <code>memory.jsonl</code>, <code>plugins.json</code>,
+    <code>state.json</code>, <code>agents/</code>, <code>memory/</code>). Sin cuentas obligatorias
+    para los modelos locales.
+  </div>
+</details>
+<details class="faq">
+  <summary>¿Por qué <code>brew</code> o <code>paru</code> pueden no funcionar todavía?</summary>
+  <div class="a">
+    Esos métodos requieren publicar la release v0.2.0 y el tap de Homebrew / paquete AUR
+    correspondientes. Mientras tanto, usa el script <code>curl</code> o compila desde fuente con Go.
+  </div>
+</details>
+<details class="faq">
+  <summary>¿Qué es <code>huginn-bot</code>?</summary>
+  <div class="a">
+    Un servidor local de control remoto (<code>127.0.0.1:8765</code>) con
+    <code>GET /health</code>, <code>GET /status</code> y <code>POST /chat</code>.
+    Exige token (<code>HUGINN_BOT_TOKEN</code>) y nunca inventa respuestas: sin
+    provider disponible devuelve un error honesto.
+  </div>
+</details>
+<details class="faq">
+  <summary>¿Cómo contribuyo?</summary>
+  <div class="a">
+    Lee <code>ARCHITECTURE.md</code>, crea una rama (<code>git checkout -b feat/mi-feature</code>),
+    verifica con <code>go vet ./... &amp;&amp; go test ./... -count=1 &amp;&amp; go build ./...</code>
+    y abre un PR. Mantén el dominio libre de dependencias de UI y añade tests para la lógica nueva.
+  </div>
+</details>

@@ -42,3 +42,11 @@ tmp/
 temp/
 *.tmp
 *.log
+
+# Tooling / local
+.opencode/
+.playwright-mcp/
+index.html
+landing/node_modules/
+landing/dist/
+.internal/

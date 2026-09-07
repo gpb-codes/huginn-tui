@@ -1,8 +1,8 @@
 // © 2026 Gabriel Pedreros — Todos los derechos reservados (ver LICENSE).
 package config
 
-// Settings tree — single source of truth for ⚙ Settings UI.
-// Infrastructure layer: persistence of values (in-memory for now, file later).
+// Settings centraliza el árbol de la UI de ajustes.
+// Capa de infraestructura: persiste valores (en memoria por ahora).
 type Section struct {
 	Name  string
 	Items []string

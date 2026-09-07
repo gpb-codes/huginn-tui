@@ -3,7 +3,7 @@ package execution
 
 import "time"
 
-// Record — trazabilidad de cada ejecucion agente/provider
+// Record traza cada ejecución de agente/provider.
 type Record struct {
 	ExecutionID string    `json:"execution_id"`
 	Agent       string    `json:"agent"`

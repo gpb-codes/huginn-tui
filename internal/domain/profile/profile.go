@@ -3,8 +3,8 @@ package profile
 
 import "time"
 
-// Profile represents the persistent user profile (Markdown backed).
-// Stored at ~/.huginn/profile.md
+// Profile representa el perfil persistente de usuario (respaldado en Markdown).
+// Almacenado en ~/.huginn/profile.md.
 type Profile struct {
 	Version       int           `json:"version"`
 	Communication Communication `json:"communication"`

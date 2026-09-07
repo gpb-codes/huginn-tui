@@ -3,7 +3,7 @@ package providers
 
 import "sync"
 
-// ModelOverrides — permite patch context window/pricing sin release (hermes 0.21 model_overrides)
+// Catalog guarda overrides de modelo (ventana/precio) sin requerir release.
 type Catalog struct {
 	mu        sync.RWMutex
 	overrides map[string]map[string]any // model -> field -> value

@@ -3,7 +3,7 @@ package ports
 
 import "context"
 
-// GitPort abstracts git operations. Agent must go through Tool, not direct git.
+// GitPort abstrae las operaciones git; el agente debe pasar por Tool, no usar git directo.
 type GitPort interface {
 	Status(ctx context.Context) (string, error)
 	Diff(ctx context.Context) (string, error)

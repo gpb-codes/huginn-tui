@@ -10,7 +10,7 @@ import (
 	"huginn/internal/domain/session"
 )
 
-// Manager persists sessions to ~/.huginn/sessions/<id>.md (and .json for index)
+// Manager persiste sesiones en ~/.huginn/sessions/<id>.md (y .json para el índice).
 type Manager struct {
 	BaseDir string
 }

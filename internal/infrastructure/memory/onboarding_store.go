@@ -10,12 +10,12 @@ import (
 	"huginn/internal/domain/onboarding"
 )
 
-// SaveResult persiste onboarding en Markdown (humano) + JSON (estructurado) sin secrets.
+// SaveResult persiste el onboarding en Markdown y JSON sin secretos.
 func SaveResult(vaultPath string, r onboarding.Result) error {
 	if strings.TrimSpace(vaultPath) == "" {
 		return fmt.Errorf("vault requerido")
 	}
-	// validar secrets
+	// Valida que la entrada no contenga secretos.
 	for _, s := range []string{
 		strings.Join(r.Technical.Languages, " "), r.Technical.PrimaryLang,
 		strings.Join(r.Technical.Frameworks, " "), r.Technical.Stack,
@@ -43,10 +43,10 @@ func SaveResult(vaultPath string, r onboarding.Result) error {
 			return err
 		}
 	}
-	// JSON config para agents/providers
+	// JSON de configuración para agentes y proveedores.
 	cfgPath := filepath.Join(vaultPath, ".huginn", "config", "user.json")
 	_ = os.MkdirAll(filepath.Dir(cfgPath), 0755)
-	// no escribimos secrets, solo preferencias
+	// Solo escribe preferencias, nunca secretos.
 	return nil
 }
 

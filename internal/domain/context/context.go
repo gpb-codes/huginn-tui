@@ -7,14 +7,14 @@ import (
 	"strings"
 )
 
-// Manager — lee Markdown directo sin embeddings/RAG (Fase 1)
+// Manager lee Markdown directo sin embeddings ni RAG (Fase 1).
 type Manager struct {
 	vaultPath string
 }
 
 func New(vaultPath string) *Manager { return &Manager{vaultPath: vaultPath} }
 
-// Load lee los 5 archivos de memoria y retorna contexto concatenado para agente
+// Load lee los 5 ficheros de memoria y devuelve el contexto concatenado para el agente.
 func (m *Manager) Load() (string, error) {
 	if m.vaultPath == "" {
 		return "", nil
@@ -37,7 +37,7 @@ func (m *Manager) Load() (string, error) {
 	return strings.Join(parts, "\n\n---\n\n"), nil
 }
 
-// NeedsUpdate detecta divergencia simple (ej: git strategy cambió)
+// NeedsUpdate detecta divergencias simples (p. ej., cambió la estrategia Git).
 func (m *Manager) NeedsUpdate(currentGitStrategy string) (bool, string) {
 	ctx, _ := m.Load()
 	if ctx == "" {

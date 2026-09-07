@@ -12,7 +12,7 @@ import (
 	domain "huginn/internal/domain/vault"
 )
 
-// FilesystemManager implements domain.Manager via filesystem.
+// FilesystemManager implementa domain.Manager sobre el sistema de ficheros.
 type FilesystemManager struct {
 	current *domain.Vault
 }
@@ -36,7 +36,7 @@ func (m *FilesystemManager) Detect(startPath string) (*domain.Vault, bool) {
 	}
 	for {
 		if m.IsInitialized(abs) {
-			// load vault.json
+			// Carga vault.json desde el directorio actual.
 			v, err := m.loadVault(abs)
 			if err == nil {
 				return v, true
@@ -66,7 +66,7 @@ func (m *FilesystemManager) Open(_ context.Context, path string) (*domain.Vault,
 			return nil, fmt.Errorf("vault.json corrupted: %w", err)
 		}
 	} else {
-		// auto-initialize
+		// Auto-inicializa el vault si aún no existe.
 		v, err = m.Initialize(context.Background(), abs)
 		if err != nil {
 			return nil, err
@@ -110,25 +110,25 @@ func (m *FilesystemManager) Initialize(_ context.Context, path string) (*domain.
 	if err := os.MkdirAll(huginnDir, 0755); err != nil {
 		return nil, err
 	}
-	// create subdirs
+	// Crea los subdirectorios internos del vault.
 	for _, dir := range []string{"agents", "memory", "plugins", "cache", "logs", "runtime"} {
 		_ = os.MkdirAll(filepath.Join(huginnDir, dir), 0755)
 	}
 	for _, dir := range []string{"notes", "projects", "agents", "memory", "attachments"} {
 		_ = os.MkdirAll(filepath.Join(abs, dir), 0755)
 	}
-	// README
+	// Genera el README inicial si falta.
 	readmePath := filepath.Join(abs, "README.md")
 	if _, err := os.Stat(readmePath); err != nil {
 		_ = os.WriteFile(readmePath, []byte("# "+filepath.Base(abs)+"\n\nHuginn Vault — initialized "+time.Now().Format("2006-01-02")+"\n"), 0644)
 	}
-	// .gitignore
+	// Genera o completa el .gitignore del vault.
 	gitignorePath := filepath.Join(abs, ".gitignore")
 	if _, err := os.Stat(gitignorePath); err != nil {
 		content := "# Huginn runtime/cache\n.huginn/cache/\n.huginn/runtime/\n.huginn/logs/\n.huginn/state.json\n"
 		_ = os.WriteFile(gitignorePath, []byte(content), 0644)
 	} else {
-		// ensure entries exist
+		// Garantiza las entradas de runtime en el .gitignore existente.
 		b, _ := os.ReadFile(gitignorePath)
 		s := string(b)
 		for _, entry := range []string{".huginn/cache/", ".huginn/runtime/", ".huginn/logs/"} {
@@ -141,7 +141,7 @@ func (m *FilesystemManager) Initialize(_ context.Context, path string) (*domain.
 			}
 		}
 	}
-	// vault.json — idempotente: no regenerar ID si ya existe
+	// vault.json idempotente: reutiliza el ID existente sin regenerarlo.
 	vaultJSONPath := filepath.Join(huginnDir, "vault.json")
 	if _, err := os.Stat(vaultJSONPath); err == nil {
 		if existing, err2 := m.loadVault(abs); err2 == nil {
@@ -162,21 +162,21 @@ func (m *FilesystemManager) Initialize(_ context.Context, path string) (*domain.
 	if err := m.saveVault(v); err != nil {
 		return nil, err
 	}
-	// config.json
+	// Crea config.json con valores por defecto.
 	cfg := domain.DefaultVaultConfig(v.Name)
 	cfgPath := filepath.Join(huginnDir, "config.json")
 	if _, err := os.Stat(cfgPath); err != nil {
 		b, _ := json.MarshalIndent(cfg, "", "  ")
 		_ = os.WriteFile(cfgPath, b, 0644)
 	}
-	// other jsons
+	// Crea los JSON auxiliares vacíos si faltan.
 	for _, name := range []string{"agents.json", "memory.jsonl", "plugins.json", "state.json"} {
 		p := filepath.Join(huginnDir, name)
 		if _, err := os.Stat(p); err != nil {
 			_ = os.WriteFile(p, []byte("{}"), 0644)
 		}
 	}
-	// vault state
+	// Actualiza el estado de apertura del vault.
 	_ = m.updateState(abs)
 	m.current = v
 	_ = m.AddRecent(*v)
@@ -229,7 +229,7 @@ func (m *FilesystemManager) AddRecent(vault domain.Vault) error {
 	if len(b) > 0 {
 		_ = json.Unmarshal(b, &list)
 	}
-	// dedup by path, move to front
+	// Elimina duplicados por ruta y mueve el vault al frente.
 	var newList []domain.Vault
 	newList = append(newList, vault)
 	for _, v := range list {
@@ -253,7 +253,7 @@ func (m *FilesystemManager) loadVault(path string) (*domain.Vault, error) {
 	if err := json.Unmarshal(b, &v); err != nil {
 		return nil, err
 	}
-	// ensure Path is absolute
+	// Garantiza que Path quede como ruta absoluta.
 	if v.Path == "" {
 		v.Path = path
 	}

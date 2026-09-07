@@ -3,7 +3,7 @@ package memory
 
 import "time"
 
-// Type constants
+// Constantes de tipo de memoria.
 const (
 	TypePreference = "preference"
 	TypeFact       = "fact"
@@ -12,7 +12,7 @@ const (
 	TypeProfile    = "profile"
 )
 
-// Memory is the canonical domain entity. Markdown is source of truth.
+// Memory es la entidad canónica de dominio. Markdown es la fuente de verdad.
 type Memory struct {
 	ID         string    `json:"id"`
 	File       string    `json:"file"`
@@ -26,5 +26,5 @@ type Memory struct {
 	UpdatedAt  time.Time `json:"updated_at"`
 }
 
-// Entry is a legacy alias kept for backward compatibility with current TUI.
+// Entry es un alias histórico para compatibilidad con la TUI actual.
 type Entry = Memory

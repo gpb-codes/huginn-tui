@@ -32,7 +32,7 @@ func TestMarkdownStore_SaveAndGet(t *testing.T) {
 	if got.Title != "Test Preference" || got.Type != memory.TypePreference {
 		t.Fatalf("mismatch %+v", got)
 	}
-	// check file exists
+	// Comprueba que el fichero se creó en disco.
 	if _, err := os.Stat(filepath.Join(base, "memory", "test_001.md")); err != nil {
 		t.Fatalf("file not created")
 	}

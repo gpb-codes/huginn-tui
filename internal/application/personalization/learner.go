@@ -11,7 +11,7 @@ import (
 	"huginn/internal/domain/memory"
 )
 
-// ConservativeLearner only learns explicit preferences like "prefiero pnpm".
+// ConservativeLearner solo aprende preferencias explícitas como "prefiero pnpm".
 type ConservativeLearner struct {
 	store ports.MemoryPort
 }
@@ -22,12 +22,11 @@ func NewConservativeLearner(store ports.MemoryPort) *ConservativeLearner {
 
 func (l *ConservativeLearner) Learn(ctx context.Context, input string) (*memory.Memory, error) {
 	lower := strings.ToLower(input)
-	// heuristic: must contain "prefiero" or "prefer" or "me gusta" to learn
+	// Heurística: solo aprende si contiene "prefiero", "prefer" o "me gusta".
 	if !strings.Contains(lower, "prefiero") && !strings.Contains(lower, "prefer") && !strings.Contains(lower, "me gusta") {
 		return nil, nil
 	}
-	// extract simple key=value
-	// e.g., "prefiero pnpm" -> key=package_manager, value=pnpm
+	// Extrae un par clave=valor simple (p. ej. "prefiero pnpm" -> package_manager=pnpm).
 	value := ""
 	if strings.Contains(lower, "pnpm") {
 		value = "pnpm"

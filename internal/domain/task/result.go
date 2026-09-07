@@ -3,7 +3,7 @@ package task
 
 import "time"
 
-// Result holds the outcome of a Task execution.
+// Result contiene el desenlace de la ejecución de una Task.
 type Result struct {
 	Success     bool
 	Output      string

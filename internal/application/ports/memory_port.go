@@ -7,7 +7,7 @@ import (
 	"huginn/internal/domain/memory"
 )
 
-// MemoryPort is the canonical port for memory (Markdown + JSONL).
+// MemoryPort es el puerto canónico de memoria (Markdown + JSONL).
 type MemoryPort interface {
 	Get(ctx context.Context, id string) (*memory.Memory, error)
 	List(ctx context.Context, memoryType string) ([]memory.Memory, error)

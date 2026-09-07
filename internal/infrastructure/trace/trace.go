@@ -1,3 +1,4 @@
+// © 2026 Gabriel Pedreros — Todos los derechos reservados (ver LICENSE).
 package trace
 
 import (
@@ -7,9 +8,10 @@ import (
 	"time"
 
 	"huginn/internal/domain/execution"
+	"huginn/internal/infrastructure/security"
 )
 
-// Store — append JSONL a .huginn/logs/executions.jsonl sin secrets
+// Store añade registros JSONL a executions.jsonl sin persistir secretos.
 type Store struct {
 	vaultPath string
 }
@@ -29,9 +31,16 @@ func (s *Store) Append(rec execution.Record) error {
 		rec.StartedAt = rec.FinishedAt
 	}
 	rec.Latency = rec.FinishedAt.Sub(rec.StartedAt).Milliseconds()
-	// nunca persistir secrets: input truncado y sanitizado
+	// Trunca y sanea la entrada para no persistir secretos.
 	if len(rec.Input) > 800 {
 		rec.Input = rec.Input[:800] + "..."
+	}
+	rec.Input = security.Redact(rec.Input)
+	for i, e := range rec.Errors {
+		if len(e) > 500 {
+			rec.Errors[i] = e[:500] + "..."
+		}
+		rec.Errors[i] = security.Redact(rec.Errors[i])
 	}
 	b, _ := json.Marshal(rec)
 	f, err := os.OpenFile(filepath.Join(dir, "executions.jsonl"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)

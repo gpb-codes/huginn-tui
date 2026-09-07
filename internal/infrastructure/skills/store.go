@@ -9,7 +9,7 @@ import (
 	"huginn/internal/domain/skill"
 )
 
-// Store — filesystem ~/.huginn/skills/<name>/SKILL.md
+// Store persiste skills en ~/.huginn/skills/<nombre>/SKILL.md.
 type Store struct{ base string }
 
 func New(base string) *Store { return &Store{base: base} }

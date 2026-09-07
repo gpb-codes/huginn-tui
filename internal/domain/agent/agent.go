@@ -3,7 +3,7 @@ package agent
 
 import "os/exec"
 
-// Status represents agent execution state.
+// Status representa el estado de ejecución de un agente.
 type Status int
 
 const (
@@ -36,11 +36,11 @@ func (s Status) Label() string {
 	}
 }
 
-// BackendAgent is the external tool that backs an agent (opencode, kilocode, etc.)
+// BackendAgent es la herramienta externa que respalda a un agente (opencode, kilocode, etc.).
 type BackendAgent struct {
 	Name        string
 	Description string
-	Command     string // empty = always online
+	Command     string // vacío = siempre en línea
 }
 
 var BackendAgents = []BackendAgent{

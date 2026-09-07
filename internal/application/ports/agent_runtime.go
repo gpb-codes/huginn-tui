@@ -7,7 +7,7 @@ import (
 	"huginn/internal/domain/task"
 )
 
-// AgentEvent represents a streaming event from an agent.
+// AgentEvent representa un evento de streaming emitido por un agente.
 type AgentEvent struct {
 	TaskID    string    `json:"task_id"`
 	AgentID   string    `json:"agent_id"`
@@ -40,8 +40,8 @@ const (
 	EventSessionCompleted EventType = "session.completed"
 )
 
-// AgentRuntime abstracts execution of a task by an agent.
-// Implementations: process (os/exec), opencode, claude, ollama, etc.
+// AgentRuntime abstrae la ejecución de una tarea por un agente.
+// Implementaciones: process (os/exec), opencode, claude, ollama, etc.
 type AgentRuntime interface {
 	Run(ctx context.Context, task task.Task) (<-chan AgentEvent, error)
 }

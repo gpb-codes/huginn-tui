@@ -3,11 +3,11 @@ package decision
 
 import "time"
 
-// Decision represents an ADR (Architecture Decision Record) stored as Markdown.
+// Decision representa un ADR (registro de decisión de arquitectura) almacenado en Markdown.
 type Decision struct {
 	ID           string    `json:"id"`
 	Title        string    `json:"title"`
-	Status       string    `json:"status"` // proposed, accepted, rejected, superseded
+	Status       string    `json:"status"` // Valores: proposed, accepted, rejected, superseded
 	Tags         []string  `json:"tags"`
 	Content      string    `json:"content"`
 	Reason       string    `json:"reason"`

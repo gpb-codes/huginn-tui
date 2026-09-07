@@ -10,9 +10,8 @@ import (
 	"strings"
 )
 
-// PickFolder abre el selector de carpetas nativo del SO.
-// Retorna (path, true) si el usuario selecciono una carpeta,
-// (\"\", false) si cancelo, y error si fallo el selector.
+// PickFolder abre el selector nativo de carpetas del SO.
+// Devuelve (path,true) al elegir, ("",false) al cancelar o error si falla.
 func PickFolder(title string) (string, bool, error) {
 	if title == "" {
 		title = "Selecciona tu Vault"
@@ -28,7 +27,7 @@ func PickFolder(title string) (string, bool, error) {
 }
 
 func pickFolderWindows(title string) (string, bool, error) {
-	// PowerShell FolderBrowserDialog — nativo, no pide escribir ruta
+	// Usa FolderBrowserDialog nativo sin pedir ruta manual.
 	ps := fmt.Sprintf(`
 Add-Type -AssemblyName System.Windows.Forms
 $dlg = New-Object System.Windows.Forms.FolderBrowserDialog
@@ -45,7 +44,7 @@ if($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK){
 	cmd.Stdout = &out
 	cmd.Stderr = &errBuf
 	if err := cmd.Run(); err != nil {
-		// intenta con pwsh si powershell no existe
+		// Reintenta con pwsh si powershell no existe.
 		cmd2 := exec.Command("pwsh", "-NoProfile", "-NonInteractive", "-Command", ps)
 		cmd2.Stdout = &out
 		cmd2.Stderr = &errBuf
@@ -57,7 +56,7 @@ if($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK){
 	if sel == "" {
 		return "", false, nil
 	}
-	// validar que no haya path traversal raro
+	// Valida que la ruta no contenga traversals extraños.
 	if _, err := os.Stat(sel); err != nil && !os.IsNotExist(err) {
 		return "", false, fmt.Errorf("ruta invalida: %w", err)
 	}
@@ -85,7 +84,7 @@ POSIX path of d`, escapeApple(title))
 }
 
 func pickFolderLinux(title string) (string, bool, error) {
-	// intenta zenity, luego kdialog, luego yad
+	// Prueba zenity, kdialog y yad en orden.
 	for _, bin := range []string{"zenity", "kdialog", "yad"} {
 		if _, err := exec.LookPath(bin); err != nil {
 			continue
@@ -106,7 +105,7 @@ func pickFolderLinux(title string) (string, bool, error) {
 		if sel != "" {
 			return sel, true, nil
 		}
-		// si no hay salida, consideramos cancelado sin error
+		// Sin salida se considera cancelación sin error.
 		return "", false, nil
 	}
 	return "", false, fmt.Errorf("no hay selector nativo (instala zenity/kdialog/yad)")

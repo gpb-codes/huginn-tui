@@ -10,17 +10,16 @@ import (
 	"huginn/internal/domain/project"
 )
 
-// Propose — analiza respuestas + contexto y propone configuracion (no ejecuta)
+// Propose analiza respuestas y contexto y propone configuración sin ejecutar nada.
 func Propose(partial domain.Result, projectPath string) domain.Result {
 	proposal := partial
-	// distinguir: Preferencia indicada vs Propuesta de HUGINN
-	// si faltan datos, inferir con defaults razonables
+	// Distingue preferencia indicada de propuesta de Huginn; si faltan datos infiere defaults razonables.
 
-	// OS
+	// OS del sistema anfitrión.
 	if proposal.Technical.OS == "" {
 		proposal.Technical.OS = runtime.GOOS
 	}
-	// Editor — detecta
+	// Editor detectado por el entorno.
 	if proposal.Technical.Editor == "" {
 		if _, err := os.Stat(filepath.Join(projectPath, ".vscode")); err == nil {
 			proposal.Technical.Editor = "VS Code"
@@ -28,7 +27,7 @@ func Propose(partial domain.Result, projectPath string) domain.Result {
 			proposal.Technical.Editor = "VS Code"
 		}
 	}
-	// Lenguajes — detecta por archivos
+	// Lenguajes detectados por los ficheros del proyecto.
 	if len(proposal.Technical.Languages) == 0 {
 		if ok, _ := project.DetectProject(projectPath); ok {
 			pm := project.DetectPackageManager(projectPath)
@@ -50,7 +49,7 @@ func Propose(partial domain.Result, projectPath string) domain.Result {
 			}
 		}
 	}
-	// Stack
+	// Stack derivada del lenguaje principal.
 	if proposal.Technical.Stack == "" && len(proposal.Technical.Frameworks) == 0 {
 		if proposal.Technical.PrimaryLang == "TypeScript" {
 			proposal.Technical.Frameworks = []string{"Next.js", "React"}
@@ -59,7 +58,7 @@ func Propose(partial domain.Result, projectPath string) domain.Result {
 			proposal.Technical.Stack = "Go + Bubble Tea"
 		}
 	}
-	// Desarrollo defaults
+	// Defaults de desarrollo.
 	if proposal.Development.Architecture == "" {
 		proposal.Development.Architecture = "Modular y mantenible (Clean/Hexagonal)"
 	}
@@ -69,19 +68,19 @@ func Propose(partial domain.Result, projectPath string) domain.Result {
 	if proposal.Development.TestingLevel == "" {
 		proposal.Development.TestingLevel = "Unit + Integration"
 	}
-	// Git defaults
+	// Defaults de Git.
 	if proposal.Git.Workflow == "" {
 		proposal.Git.Workflow = "feature branches"
 		proposal.Git.BranchStrategy = "feature/* → develop → main"
 		proposal.Git.CommitConvention = "Conventional Commits"
 	}
-	// AI defaults
+	// Defaults de IA.
 	if len(proposal.AI.Providers) == 0 {
 		proposal.AI.Providers = []string{"chatgpt", "opencode"}
 		proposal.AI.LocalOrCloud = "cloud con fallback local"
 		proposal.AI.AutonomyLevel = "conservador — pide confirmacion antes de acciones destructivas"
 	}
-	// General defaults
+	// Defaults generales.
 	if proposal.General.AnswerStyle == "" {
 		proposal.General.AnswerStyle = "conciso con detalle cuando se requiera"
 		proposal.General.ExplainDecisions = true
@@ -90,5 +89,3 @@ func Propose(partial domain.Result, projectPath string) domain.Result {
 	}
 	return proposal
 }
-
-

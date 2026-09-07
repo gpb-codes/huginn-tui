@@ -1,7 +1,7 @@
 // © 2026 Gabriel Pedreros — Todos los derechos reservados (ver LICENSE).
 package project
 
-// Project represents a detected project on disk.
+// Project representa un proyecto detectado en disco.
 type Project struct {
 	Path           string
 	Name           string

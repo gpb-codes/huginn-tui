@@ -3,7 +3,7 @@ package preference
 
 import "time"
 
-// Preference is a learned user preference, stored as Markdown.
+// Preference es una preferencia aprendida del usuario, almacenada en Markdown.
 type Preference struct {
 	ID         string    `json:"id"`
 	Key        string    `json:"key"`

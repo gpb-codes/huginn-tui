@@ -11,19 +11,29 @@
 
 ## 2. Paleta
 
-Bronce oscuro cálido, gradients de oro.
+Bronce oscuro cálido, gradients de oro. Fuente de verdad:
+`internal/tui/styles/tokens.go` (`palette.go` y `header.go` solo re-exportan,
+jamás redefinen hex).
 
 | Token | Hex | Uso |
 |-------|-----|-----|
 | `bg` | `#130E0A` | canvas |
-| `surface` | `#4D3217` | paneles principales |
-| `bronze` | `#634924` | bordes, muted |
-| `gold-dark` | `#976629` | accent oscuro |
-| `amber` | `#E1A451` | acentos, highlights |
-| `orange` | `#CD8D38` | secondary, warn, error |
-| `light` | `#FBE7AE` | texto primario |
-| `text` | `#9D8E69` | texto secundario |
+| `panel` | `#20160E` | paneles principales (oscuro: el borde bronce se lee) |
+| `panel-2` | `#2E2013` | inset / tarjetas secundarias |
+| `border` | `#634924` | bordes, muted oscuro |
+| `border-2` | `#976629` | foco, gold-dark |
+| `accent` | `#E1A451` | ámbar: acentos, highlights, selección |
+| `accent-2` | `#CD8D38` | naranja secondary |
+| `text` | `#FBE7AE` | texto primario |
+| `text-2` | `#C9A86C` | texto secundario cálido |
+| `muted` | `#9D8E69` | hints, timestamps |
+| `muted-2` | `#7A6950` | detalle tenue |
+| `success` | `#9CAF7A` | salvia cálida (hechos, nunca ámbar) |
+| `warn` | `#E1A451` | ámbar (avisos) |
+| `error` | `#C96A4A` | terracota (errores, nunca rojo plano) |
+| `info` | `#8AB4B8` | cian apagado (un agente de chat, links) |
 
+Semánticos siempre distinguibles: `success ≠ warn ≠ error` (hay test).
 Gradientes solo en acentos: `purple→cyan` para HUGINN wordmark, nunca en fondos.
 
 ## 3. Tipografía
@@ -50,11 +60,13 @@ Gradientes solo en acentos: `purple→cyan` para HUGINN wordmark, nunca en fondo
 
 **Header:** 1 línea, `HUGINN • AI ORCHESTRATOR • CONNECTED` con barra fina abajo. Sin logo gigante.
 
-**Chat:**
-- Input sticky abajo, con `> ` + caret bloque blanco, hint `escribe para chatear — Enter • @opcional`.
-- Mensajes con avatar letra (`H` `You`) y timestamp tenue.
-- Agent Dispatch como chips, no tabla: `ChatGPT → Architecture ✓` en línea.
-- Background Tasks como lista compacta con barra progreso fina 2px.
+**Chat (pantalla principal, layout estilo opencode con marca HUGINN):**
+- Sin header superior: conversación + sidebar + prompt + una sola fila de estado.
+- Vacío: banner ASCII `HUGINN` centrado (bicolor ámbar/cream) + guía `/plan`, `@runtimes`, `/help`.
+- Mensajes en flujo libre sin cajas, con timestamp tenue (`[15:04]`) y color por agente.
+- Sidebar separado por borde `█` bronce: `AGENTS` (roles reales con %), `PIPELINE` (✓/●/○ por estado), `CONTEXT` (proyecto, pkg, vault, logs).
+- Prompt estilo opencode: marco `┃` lateral + base `╹──`, sin char `>`, fondo elevado; 2ª línea inline `@agente · modelo · pkg` + `tab ⇆ agente` a la derecha.
+- Footer de una línea: `tab agents   ctrl+p commands   ? help` + `cwd   vault   • HUGINN vX`.
 
 **Vault wizard:**
 - Progreso `— 3/7 • /vault • Propósito • 42%` con barra 2px cyan.

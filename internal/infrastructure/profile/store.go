@@ -9,7 +9,7 @@ import (
 	"huginn/internal/domain/profile"
 )
 
-// Store handles ~/.huginn/profile.md
+// Store gestiona el perfil en ~/.huginn/profile.md.
 type Store struct {
 	BaseDir string
 }
@@ -27,10 +27,10 @@ func (s *Store) Path() string { return filepath.Join(s.BaseDir, "profile.md") }
 func (s *Store) Load() (profile.Profile, error) {
 	p := s.Path()
 	if _, err := os.Stat(p); err != nil {
-		// return default if not exists
+		// Devuelve el perfil por defecto si no existe el fichero.
 		return profile.Default(), nil
 	}
-	// For now, return default; real parsing of Markdown frontmatter would go here
+	// Retorna el perfil por defecto; el parseo de frontmatter queda pendiente.
 	prof := profile.Default()
 	prof.UpdatedAt = time.Now()
 	return prof, nil

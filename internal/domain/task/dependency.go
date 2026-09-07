@@ -1,13 +1,13 @@
 // © 2026 Gabriel Pedreros — Todos los derechos reservados (ver LICENSE).
 package task
 
-// Dependency describes that a Task depends on another.
+// Dependency declara que una Task depende de otra.
 type Dependency struct {
 	TaskID      string
 	DependsOnID string
 }
 
-// Graph holds tasks and their dependencies, supports topological ordering.
+// Graph agrupa tareas y dependencias con ordenación topológica.
 type Graph struct {
 	Tasks map[string]*Task
 }
@@ -20,7 +20,7 @@ func (g *Graph) Add(t Task) {
 	g.Tasks[t.ID] = &t
 }
 
-// Ready returns tasks whose dependencies are all completed.
+// Ready devuelve las tareas cuyas dependencias están completadas.
 func (g *Graph) Ready() []*Task {
 	var ready []*Task
 	for _, t := range g.Tasks {
@@ -42,9 +42,9 @@ func (g *Graph) Ready() []*Task {
 	return ready
 }
 
-// TopologicalOrder returns tasks in dependency order (Kahn's algorithm, best-effort).
+// TopologicalOrder devuelve las tareas en orden de dependencias (algoritmo de Kahn, mejor esfuerzo).
 func (g *Graph) TopologicalOrder() []*Task {
-	// copy
+	// Copia el grado de entrada por tarea.
 	inDegree := make(map[string]int)
 	for id := range g.Tasks {
 		inDegree[id] = 0

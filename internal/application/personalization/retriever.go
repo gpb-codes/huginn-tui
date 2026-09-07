@@ -10,7 +10,7 @@ import (
 	"huginn/internal/domain/memory"
 )
 
-// SimpleRetriever does textual search + importance ranking, no embeddings.
+// SimpleRetriever busca por texto y ordena por importancia, sin embeddings.
 type SimpleRetriever struct {
 	store ports.MemoryPort
 }
@@ -24,7 +24,7 @@ func (r *SimpleRetriever) Retrieve(ctx context.Context, query string, limit int)
 	if err != nil {
 		return nil, err
 	}
-	// rank by importance*confidence and textual match
+	// Ordena por importancia*confianza y coincidencia textual.
 	q := strings.ToLower(query)
 	sort.Slice(all, func(i, j int) bool {
 		si := score(all[i], q)
@@ -39,7 +39,7 @@ func (r *SimpleRetriever) Retrieve(ctx context.Context, query string, limit int)
 
 func score(m memory.Memory, q string) float64 {
 	base := m.Importance*0.6 + m.Confidence*0.4
-	// boost if query in title/content/tags
+	// Bonifica coincidencias en título, contenido o etiquetas.
 	if strings.Contains(strings.ToLower(m.Title), q) {
 		base += 0.3
 	}

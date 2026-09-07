@@ -8,7 +8,7 @@ import (
 	"huginn/internal/domain/memory"
 )
 
-// Engine orchestrates Retriever + Learner + ContextBuilder.
+// Engine orquesta Retriever, Learner y ContextBuilder.
 type Engine struct {
 	retriever Retriever
 	learner   Learner

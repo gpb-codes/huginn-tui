@@ -3,8 +3,8 @@ package vault
 
 import "context"
 
-// Manager is the abstraction for Vault operations.
-// Infrastructure implements this via filesystem.
+// Manager abstrae las operaciones sobre Vault.
+// La infraestructura lo implementa sobre el sistema de ficheros.
 type Manager interface {
 	Open(ctx context.Context, path string) (*Vault, error)
 	Create(ctx context.Context, parentDir, name string) (*Vault, error)

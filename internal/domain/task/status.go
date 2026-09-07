@@ -1,13 +1,18 @@
+// © 2026 Gabriel Pedreros — Todos los derechos reservados (ver LICENSE).
 package task
 
-// Status represents the lifecycle of a Task.
+// Status representa el ciclo de vida de una Task.
 type Status string
 
 const (
 	StatusPending   Status = "pending"
+	StatusPlanning  Status = "planning"
+	StatusReady     Status = "ready"
 	StatusQueued    Status = "queued"
 	StatusRunning   Status = "running"
 	StatusWaiting   Status = "waiting"
+	StatusReview    Status = "review"
+	StatusRetrying  Status = "retrying"
 	StatusCompleted Status = "completed"
 	StatusFailed    Status = "failed"
 	StatusCancelled Status = "cancelled"

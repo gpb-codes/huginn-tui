@@ -10,7 +10,7 @@ import (
 	"huginn/internal/domain/profile"
 )
 
-// Builder assembles Profile + Preferences + Relevant Memories + Project.
+// Builder combina perfil, preferencias, memorias relevantes y proyecto.
 type Builder struct {
 	profileStore interface {
 		Load() (profile.Profile, error)
@@ -36,7 +36,7 @@ func (b *Builder) Build(ctx context.Context, prompt, project string) (string, er
 			sb.WriteString(fmt.Sprintf("- %s: %s\n", m.Title, m.Content))
 		}
 	}
-	// Never send entire vault — limit to 5 memories
+	// Nunca envía el vault completo: limita a 5 memorias.
 	_ = ports.AgentEvent{} // ensure import used
 	return sb.String(), nil
 }

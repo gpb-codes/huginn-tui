@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 )
 
-// ResolveVaultPath returns the vault path and whether it exists.
-// Priority: HUGINN_VAULT / AGENT_VAULT env > ~/agent-vault > ~/huginn-vault > ~/.huginn/vault
-// Domain layer: no infrastructure details, only filesystem check.
+// ResolveVaultPath devuelve la ruta del vault e indica si existe.
+// Prioridad: env HUGINN_VAULT / AGENT_VAULT > ~/agent-vault > ~/huginn-vault > ~/.huginn/vault.
+// Capa de dominio: solo comprueba el sistema de ficheros, sin detalles de infraestructura.
 func ResolveVaultPath() (string, bool) {
 	if v := os.Getenv("HUGINN_VAULT"); v != "" {
 		if _, err := os.Stat(v); err == nil {

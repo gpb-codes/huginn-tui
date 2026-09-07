@@ -3,24 +3,24 @@ package ports
 
 import "context"
 
-// Tool represents a capability an agent can use.
+// Tool representa una capacidad que un agente puede usar.
 type Tool struct {
 	Name        string
 	Description string
 	Permissions []string // read, write, execute, network, git
 }
 
-// ToolExecutor executes a tool call.
+// ToolExecutor ejecuta una llamada a herramienta.
 type ToolExecutor interface {
 	Execute(ctx context.Context, tool string, args map[string]string) (string, error)
 }
 
-// PermissionPolicy decides if an agent can use a tool.
+// PermissionPolicy decide si un agente puede usar una herramienta.
 type PermissionPolicy interface {
 	Can(agentID, tool string, permission string) bool
 }
 
-// ToolResult is the outcome of a tool execution.
+// ToolResult es el resultado de una ejecución de herramienta.
 type ToolResult struct {
 	Tool    string
 	Success bool

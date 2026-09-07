@@ -1,0 +1,73 @@
+<div class="grid">
+  <div class="card">
+    <h3>/plan con DAG visible</h3>
+    <p>
+      <code>/plan &lt;objetivo&gt;</code> descompone tu objetivo en un grafo de tareas
+      (niveles paralelos visibles en el chat). El router elige runtime por capacidad
+      (<code>coding</code>, <code>research</code>, <code>testing</code>, <code>review</code>…)
+      y el evaluador decide: éxito, reintento acotado, replanificación o aprobación humana.
+    </p>
+  </div>
+  <div class="card">
+    <h3>Orquestación multi-agente</h3>
+    <p>Huginn piensa y coordina; los agentes ejecutan. Dos runtimes principales:</p>
+    <ul>
+      <li><code>opencode</code> — coding, testing, devops, filesystem, git (CLI real)</li>
+      <li><code>ollama</code> — research, reasoning, documentation, review (local)</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>Chat por agentes</h3>
+    <p>
+      Cambia de agente con <code>Tab</code> o menciones:
+      <code>@opencode</code> <code>@chatgpt</code> <code>@kilo</code> <code>@mimo</code>
+      <code>@muse</code> <code>@all</code>. Paleta con <code>Ctrl+P</code>, grafo con
+      <code>Ctrl+G</code>, ayuda con <code>?</code>.
+    </p>
+  </div>
+  <div class="card">
+    <h3>Vault persistente</h3>
+    <p>
+      Agent Vault en <code>.huginn/</code>: <code>config.json</code>,
+      <code>vault.json</code>, <code>agents.json</code>, <code>memory.jsonl</code>,
+      <code>plugins.json</code>, <code>state.json</code> más <code>agents/</code> y
+      <code>memory/</code>. Asistente de 7 pasos con <code>/vault</code>.
+    </p>
+  </div>
+  <div class="card">
+    <h3>Knowledge graph</h3>
+    <p>
+      Grafo de conocimiento interactivo (<code>graph</code>, <code>/graph</code> o
+      <code>Ctrl+G</code>) y memoria append-only. Huginn vuela, recuerda y conecta mundos.
+    </p>
+  </div>
+  <div class="card">
+    <h3>Límites anti-bucle</h3>
+    <p>
+      Todo loop está acotado: reintentos (2 por defecto), 1 ronda de replanificación,
+      timeout de 90&nbsp;s por tarea y puerta de aprobación humana para operaciones
+      sensibles como <code>git push</code> o <code>rm -rf</code>.
+    </p>
+  </div>
+  <div class="card">
+    <h3>Detección automática</h3>
+    <p>Detecta tu proyecto y tu entorno sin configurar nada:</p>
+    <ul>
+      <li>Proyecto: <code>go.mod</code>, <code>package.json</code>, <code>.git</code>, <code>pyproject.toml</code>, <code>Cargo.toml</code></li>
+      <li>Gestor JS: <code>bun.lockb</code> › <code>pnpm-lock.yaml</code> › <code>yarn.lock</code> › <code>package-lock.json</code></li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>Seguridad por diseño</h3>
+    <p>
+      Política de permisos (escritura solo para agentes autorizados), entorno mínimo
+      para procesos hijo y traza con secretos redactados (<code>API_KEY</code>,
+      <code>TOKEN</code>, <code>PASSWORD</code> nunca se loguean).
+    </p>
+  </div>
+</div>
+
+<div class="pipeline" aria-label="Flujo de /plan">USER → HUGINN TUI (/plan &lt;objetivo&gt;) → NEURAL ENGINE (Analyze → Classify → Decompose → DAG)
+→ AGENT ROUTER (por capacidad) → OpenCode (coding) · Ollama (research) · Kilo (opcional)
+→ EXECUTION (timeout, permisos, aprobación) → EVALUATOR → SUCCESS → DONE
+                                              └→ FAIL → retry acotado → replan (1 ronda) → DONE / FAILED</div>

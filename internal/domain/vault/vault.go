@@ -3,7 +3,7 @@ package vault
 
 import "time"
 
-// Vault represents a Huginn workspace — a folder that contains .huginn
+// Vault representa un espacio de trabajo Huginn: carpeta que contiene .huginn.
 type Vault struct {
 	ID        string    `json:"id"`
 	Name      string    `json:"name"`
@@ -13,7 +13,7 @@ type Vault struct {
 	Version   int       `json:"version"`
 }
 
-// VaultConfig is the global config inside .huginn/config.json
+// VaultConfig es la configuración global en .huginn/config.json.
 type VaultConfig struct {
 	SchemaVersion int `json:"schemaVersion"`
 	Version       int `json:"version"`
@@ -46,7 +46,7 @@ func DefaultVaultConfig(name string) VaultConfig {
 	return c
 }
 
-// VaultState holds runtime state (not versioned in git)
+// VaultState conserva el estado de ejecución (no versionado en git).
 type VaultState struct {
 	LastOpened time.Time `json:"lastOpened"`
 	OpenCount  int       `json:"openCount"`

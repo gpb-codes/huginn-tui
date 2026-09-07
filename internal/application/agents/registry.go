@@ -10,7 +10,7 @@ import (
 	"huginn/internal/domain/agent"
 )
 
-// Agent — rol con responsabilidad (planner, research, coding, etc.)
+// Agent define un rol con una responsabilidad (planner, research, coding, etc.).
 type Agent interface {
 	Name() string
 	Role() string
@@ -19,7 +19,7 @@ type Agent interface {
 	Providers() []agent.Provider
 }
 
-// Registry — registro extensible de agentes y providers
+// Registry mantiene el registro extensible de agentes y providers.
 type Registry struct {
 	mu        sync.RWMutex
 	agents    map[string]Agent
@@ -93,7 +93,7 @@ func (r *Registry) SetPreferred(agentName, providerName string, cfg agent.Provid
 	r.config[agentName] = cfg
 }
 
-// SelectProvider — selecciona provider segun config, disponibilidad y prioridad
+// SelectProvider elige provider según configuración, disponibilidad y prioridad.
 func (r *Registry) SelectProvider(ctx context.Context, agentName string, candidates []agent.Provider) (agent.Provider, error) {
 	if len(candidates) == 0 {
 		return nil, fmt.Errorf("sin candidates para %s", agentName)
@@ -102,7 +102,7 @@ func (r *Registry) SelectProvider(ctx context.Context, agentName string, candida
 	pref, hasPref := r.config[agentName]
 	r.mu.RUnlock()
 
-	// 1) preferido si esta disponible
+	// 1) Preferido si está disponible.
 	if hasPref {
 		if p, ok := r.GetProvider(pref.Name); ok && p.Available(ctx) {
 			for _, c := range candidates {
@@ -112,9 +112,9 @@ func (r *Registry) SelectProvider(ctx context.Context, agentName string, candida
 			}
 		}
 	}
-	// 2) primer disponible por prioridad
+	// 2) Primer disponible por prioridad.
 	sort.Slice(candidates, func(i, j int) bool {
-		// usa config priority si existe
+		// Usa la prioridad configurada si existe.
 		pi, pj := 0, 0
 		r.mu.RLock()
 		if ca, ok := r.config[agentName+"::"+candidates[i].Name()]; ok {
@@ -131,11 +131,11 @@ func (r *Registry) SelectProvider(ctx context.Context, agentName string, candida
 			return c, nil
 		}
 	}
-	// 3) fallback al primero aunque no disponible (provider hara error trazable)
+	// 3) Reserva al primero aunque no esté disponible (el provider devolverá un error trazable).
 	return candidates[0], nil
 }
 
-// Delegate — resuelve agente por tipo de tarea
+// ResolveAgent resuelve el agente capaz de atender un tipo de tarea.
 func (r *Registry) ResolveAgent(taskType string) (Agent, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

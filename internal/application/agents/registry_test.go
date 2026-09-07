@@ -1,3 +1,4 @@
+// © 2026 Gabriel Pedreros — Todos los derechos reservados (ver LICENSE).
 package agents
 
 import (
@@ -10,26 +11,26 @@ import (
 
 func TestRegistry_RegisterAndSelect(t *testing.T) {
 	r := NewRegistry()
-	if err := r.RegisterProvider(providers.NewChatGPT()); err != nil {
+	if err := r.RegisterProvider(providers.NewMock("chatgpt")); err != nil {
 		t.Fatalf("register chatgpt: %v", err)
 	}
-	if err := r.RegisterProvider(providers.NewClaude()); err != nil {
+	if err := r.RegisterProvider(providers.NewMock("claude")); err != nil {
 		t.Fatalf("register claude: %v", err)
 	}
-	if err := r.RegisterProvider(providers.NewChatGPT()); err == nil {
+	if err := r.RegisterProvider(providers.NewMock("chatgpt")); err == nil {
 		t.Fatal("esperaba error duplicado")
 	}
-	// preferencia claude
+	// Fija la preferencia por claude para el orquestador.
 	r.SetPreferred("orchestrator", "claude", agent.ProviderConfig{Name: "claude", Priority: 0})
-	candidates := []agent.Provider{providers.NewChatGPT(), providers.NewClaude()}
+	candidates := []agent.Provider{providers.NewMock("chatgpt"), providers.NewMock("claude")}
 	sel, err := r.SelectProvider(context.Background(), "orchestrator", candidates)
 	if err != nil || sel.Name() != "claude" {
 		t.Fatalf("select claude: %v %v", sel, err)
 	}
-	// fallback si preferido no disponible — mock siempre disponible, probamos sin preferencia
+	// Reserva sin preferencia: los mocks siempre están disponibles.
 	r2 := NewRegistry()
-	r2.RegisterProvider(providers.NewChatGPT())
-	r2.RegisterProvider(providers.NewClaude())
+	r2.RegisterProvider(providers.NewMock("chatgpt"))
+	r2.RegisterProvider(providers.NewMock("claude"))
 	sel2, _ := r2.SelectProvider(context.Background(), "orchestrator", candidates)
 	if sel2 == nil {
 		t.Fatal("select sin pref fallo")
@@ -38,7 +39,7 @@ func TestRegistry_RegisterAndSelect(t *testing.T) {
 
 func TestRegistry_RegisterAgent(t *testing.T) {
 	r := NewRegistry()
-	// agent stub
+	// mockAgent es un doble de prueba mínimo de Agent.
 	a := &mockAgent{name: "research", types: []string{"research"}}
 	if err := r.RegisterAgent(a); err != nil {
 		t.Fatal(err)

@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 )
 
-// Service provides filesystem operations behind ToolPort.
-// In Clean Architecture, domain never touches os directly; it goes through this adapter.
+// Service expone operaciones de ficheros tras ToolPort.
+// El dominio nunca usa os directo; pasa por este adaptador.
 type Service struct {
 	Root string
 }

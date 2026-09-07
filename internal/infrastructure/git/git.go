@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// Adapter implements ports.GitPort via os/exec git.
+// Adapter implementa ports.GitPort mediante git con os/exec.
 type Adapter struct {
 	Dir string
 }
