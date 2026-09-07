@@ -3,6 +3,8 @@ package tui
 
 import (
 	"fmt"
+	"os/exec"
+	"runtime"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -18,6 +20,7 @@ const (
 	ModeHelp
 	ModeMessage
 	ModePalette
+	ModeModelSelect
 )
 
 var huginnModes = []string{"Ask", "Architect", "Code", "Debug", "Orchestrator"}
@@ -47,6 +50,13 @@ type Model struct {
 	paletteItems  []string
 	modeIndex     int // índice en huginnModes
 
+	// Selector de modelos (como en captura 3)
+	modelCursor int
+	modelItems  []string
+	modelSearch string
+
+	tuiCfg TUIConfig
+
 	projectPath string
 	vaultPath   string
 	quitting    bool
@@ -59,6 +69,16 @@ func New(projectPath, vaultPath string) Model {
 		vaultPath:    vaultPath,
 		modeIndex:    0,
 		paletteItems: []string{"/help", "/agents", "/tasks", "/projects", "/sessions", "/memory", "/workflows", "/models", "/config", "/clear", "/undo", "/exit"},
+		modelItems: []string{
+			"Qwen3-Coder-480B (Huginn · coding)",
+			"Qwen2.5-Coder-32B (Huginn · coding)",
+			"DeepSeek-R1 (reasoning)",
+			"DeepSeek-V3 (general)",
+			"Claude 4.5 Opus (Huginn · reasoning)",
+			"GPT-5.2 Codex High",
+			"Gemini 3 Pro",
+		},
+		tuiCfg: LoadTUIConfig(),
 	}
 }
 
@@ -96,10 +116,60 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			case "enter":
 				if m.paletteCursor >= 0 && m.paletteCursor < len(m.paletteItems) {
-					m.input = m.paletteItems[m.paletteCursor] + " "
+					sel := m.paletteItems[m.paletteCursor]
+					if sel == "/models" {
+						m.mode = ModeModelSelect
+						m.modelCursor = 0
+						return m, nil
+					}
+					m.input = sel + " "
 					m.cursor = len([]rune(m.input))
 				}
 				m.mode = ModeHome
+				return m, nil
+			}
+		}
+		// Selector de modelos (como captura 3): typing filtra, backspace borra
+		if m.mode == ModeModelSelect {
+			switch msg.String() {
+			case "esc":
+				m.mode = ModeHome
+				m.modelSearch = ""
+				m.modelCursor = 0
+				return m, nil
+			case "up", "k":
+				if m.modelCursor > 0 {
+					m.modelCursor--
+				}
+				return m, nil
+			case "down", "j":
+				if m.modelCursor < len(m.filteredModels())-1 {
+					m.modelCursor++
+				}
+				return m, nil
+			case "enter":
+				items := m.filteredModels()
+				if m.modelCursor >= 0 && m.modelCursor < len(items) {
+					m.messages = append(m.messages, chatMsg{Role: "system", Text: "Modelo seleccionado: " + items[m.modelCursor], Meta: "Huginn"})
+				}
+				m.mode = ModeHome
+				m.modelSearch = ""
+				m.modelCursor = 0
+				return m, nil
+			case "backspace", "ctrl+h":
+				if len(m.modelSearch) > 0 {
+					runes := []rune(m.modelSearch)
+					m.modelSearch = string(runes[:len(runes)-1])
+					m.modelCursor = 0
+				}
+				return m, nil
+			}
+			if s := msg.String(); len(s) == 1 || len([]rune(s)) == 1 {
+				r := []rune(s)
+				if len(r) == 1 && r[0] >= 32 && r[0] != 127 {
+					m.modelSearch += s
+					m.modelCursor = 0
+				}
 				return m, nil
 			}
 		}
@@ -239,6 +309,21 @@ func (m Model) handleEnter() (Model, tea.Cmd) {
 	m.input = ""
 	m.cursor = 0
 
+	// Bash: !<cmd> como en opencode (ej: ! ls -la)
+	if strings.HasPrefix(raw, "!") {
+		cmdStr := strings.TrimSpace(strings.TrimPrefix(raw, "!"))
+		if cmdStr == "" {
+			m.messages = append(m.messages, chatMsg{Role: "system", Text: "Uso: ! <comando>  — ejecuta en shell y añade el output al contexto", Meta: "Huginn"})
+			return m, nil
+		}
+		m.messages = append(m.messages, chatMsg{Role: "user", Text: "! " + cmdStr, Meta: "Tú → Shell"})
+		out := runShell(cmdStr)
+		m.messages = append(m.messages, chatMsg{Role: "assistant", Text: out, Meta: "Shell → Huginn"})
+		m.messages = append(m.messages, chatMsg{Role: "orchestrator", Text: "Output de shell añadido al contexto. Huginn lo usará en el próximo turno.", Meta: "Huginn · Orquestador"})
+		m.scroll = 0
+		return m, nil
+	}
+
 	if strings.HasPrefix(raw, "/") {
 		cmd, _ := splitCommand(raw)
 		switch cmd {
@@ -267,6 +352,35 @@ func (m Model) handleEnter() (Model, tea.Cmd) {
 			m.mode = ModeMessage
 			m.msgTitle = "Tasks"
 			m.msgBody = "Estados: PENDING → PLANNING → RUNNING → WAITING → COMPLETED\n                           ↘ FAILED / CANCELLED"
+			return m, nil
+		case "/models", "/model":
+			m.mode = ModeModelSelect
+			m.modelCursor = 0
+			return m, nil
+		case "/projects", "/project":
+			m.mode = ModeMessage
+			m.msgTitle = "Projects"
+			m.msgBody = "Proyecto actual: " + displayPath(m.projectPath) + "\n\nPróximamente: listado y cambio de workspace."
+			return m, nil
+		case "/sessions", "/session":
+			m.mode = ModeMessage
+			m.msgTitle = "Sessions"
+			m.msgBody = "Sesiones aún no implementadas.\n\nContrato preparado: Session {ID, Workspace, Tasks, CreatedAt}."
+			return m, nil
+		case "/memory", "/mem":
+			m.mode = ModeMessage
+			m.msgTitle = "Memory"
+			m.msgBody = "Memoria aún no implementada.\n\nCapas previstas: Short-Term, Long-Term, Project, Agent, Task History."
+			return m, nil
+		case "/workflows", "/workflow", "/wf":
+			m.mode = ModeMessage
+			m.msgTitle = "Workflows"
+			m.msgBody = "Workflows aún no implementados.\n\nArquitectura lista para orquestar DAGs de tareas."
+			return m, nil
+		case "/config", "/conf", "/settings":
+			m.mode = ModeMessage
+			m.msgTitle = "Config"
+			m.msgBody = "Configuración en .huginn/config.json (cuando exista).\n\nVault: " + displayPath(m.vaultPath) + "\nProyecto: " + displayPath(m.projectPath)
 			return m, nil
 		default:
 			m.mode = ModeMessage
@@ -309,7 +423,30 @@ func (m Model) handleEnter() (Model, tea.Cmd) {
 		Meta: "Huginn → Tú",
 	})
 	m.mode = ModeHome
+	m.scroll = 0
 	return m, nil
+}
+
+func runShell(cmdStr string) string {
+	var cmd *exec.Cmd
+	if runtime.GOOS == "windows" {
+		cmd = exec.Command("cmd", "/C", cmdStr)
+	} else {
+		cmd = exec.Command("sh", "-c", cmdStr)
+	}
+	out, err := cmd.CombinedOutput()
+	s := string(out)
+	if err != nil {
+		s += "\n[exit: " + err.Error() + "]"
+	}
+	s = strings.TrimSpace(s)
+	if s == "" {
+		s = "(sin salida)"
+	}
+	if len(s) > 4000 {
+		s = s[:4000] + "\n… (truncado)"
+	}
+	return "```\n" + s + "\n```"
 }
 
 func splitCommand(s string) (string, string) {
@@ -352,6 +489,8 @@ func (m Model) View() tea.View {
 		content = m.viewMessage(w, h)
 	case ModePalette:
 		content = m.viewPalette(w, h)
+	case ModeModelSelect:
+		content = m.viewModelSelect(w, h)
 	default:
 		if len(m.messages) == 0 {
 			content = m.viewHome(w, h)
@@ -727,43 +866,107 @@ func (m Model) viewPalette(w, h int) string {
 	return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, inner)
 }
 
+// filteredModels devuelve los modelos que coinciden con modelSearch (case-insensitive).
+func (m Model) filteredModels() []string {
+	q := strings.ToLower(strings.TrimSpace(m.modelSearch))
+	if q == "" {
+		return m.modelItems
+	}
+	var out []string
+	for _, item := range m.modelItems {
+		if strings.Contains(strings.ToLower(item), q) {
+			out = append(out, item)
+		}
+	}
+	return out
+}
+
+func (m Model) viewModelSelect(w, h int) string {
+	title := lipgloss.NewStyle().Foreground(styles.Text).Bold(true).Render("Select model") +
+		lipgloss.NewStyle().Foreground(styles.Muted2).Render("  esc")
+	searchText := m.modelSearch
+	if strings.TrimSpace(searchText) == "" {
+		searchText = lipgloss.NewStyle().Foreground(styles.Muted2).Render("Search")
+	}
+	search := lipgloss.NewStyle().
+		Foreground(styles.Muted).
+		Background(lipgloss.Color("#1A1A22")).
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#2A2A3A")).
+		Padding(0, 1).
+		Width(min(48, w-8)).
+		Render(searchText + lipgloss.NewStyle().Background(lipgloss.Color("#8B5CF6")).Render(" "))
+	items := m.filteredModels()
+	var lines []string
+	for i, item := range items {
+		style := lipgloss.NewStyle().Foreground(styles.Text2).Width(min(48, w-8)).Padding(0, 1)
+		if i == m.modelCursor {
+			style = lipgloss.NewStyle().Foreground(styles.Bg).Background(lipgloss.Color("#8B5CF6")).Bold(true).Width(min(48, w-8)).Padding(0, 1)
+		}
+		lines = append(lines, style.Render(item))
+	}
+	if len(lines) == 0 {
+		lines = append(lines, lipgloss.NewStyle().Foreground(styles.Muted2).Italic(true).Render("Sin coincidencias para \""+m.modelSearch+"\""))
+	}
+	body := strings.Join(lines, "\n")
+	box := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#2A2A3A")).
+		Background(lipgloss.Color("#0A0A1A")).
+		Padding(1, 1).
+		Width(min(52, w-6)).
+		Render(title + "\n\n" + search + "\n\n" + body)
+	hint := lipgloss.NewStyle().Foreground(styles.Muted2).Render("↑/k ↓/j  enter selecciona  esc cierra  •  " + m.currentMode())
+	inner := lipgloss.JoinVertical(lipgloss.Left, box, "", hint)
+	return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, inner)
+}
+
 func (m Model) viewHelp(w, h int) string {
-	// Paleta de comandos estilo opencode: lista con atajos y descripciones
-	title := lipgloss.NewStyle().Foreground(styles.Text).Bold(true).Render("Comandos") +
-		lipgloss.NewStyle().Foreground(styles.Muted2).Render("  ·  Huginn v0.2.0")
+	// Help centrado como en opencode: logo + versión + 3 columnas (comando, descripción, atajo)
+	logo := renderAsciiHugInnSmall()
+	ver := lipgloss.NewStyle().Foreground(styles.Muted2).Render("v0.2.0")
+	header := lipgloss.JoinVertical(lipgloss.Center, logo, ver)
 	rows := [][]string{
-		{"/help, /h, ?", "muestra esta ayuda"},
-		{"/agents", "agentes · contrato Agent listo"},
-		{"/tasks", "tareas · PENDING → PLANNING → RUNNING → …"},
-		{"/projects", "proyecto actual y workspace"},
-		{"/sessions", "sesiones (preparado)"},
-		{"/memory", "memoria · Short/Long/Project/Agent"},
-		{"/workflows", "workflows · DAGs futuros"},
-		{"/models", "modelos · Ollama / OpenCode"},
-		{"/config", "configuración y vault"},
-		{"/clear", "limpia conversación"},
-		{"/undo", "revierte último mensaje"},
-		{"/exit, /quit", "salir"},
+		{"/help", "show help", "ctrl+x h"},
+		{"/editor", "open editor", "ctrl+x a"},
+		{"/models", "list models", "ctrl+x m"},
+		{"/init", "create AGENTS.md", "ctrl+x i"},
+		{"/compact", "compact the session", "ctrl+x c"},
+		{"/sessions", "list sessions", "ctrl+x l"},
 	}
 	var bodyLines []string
 	for _, r := range rows {
-		key := lipgloss.NewStyle().Foreground(lipgloss.Color("#9B87F5")).Width(18).Render(r[0])
-		desc := lipgloss.NewStyle().Foreground(styles.Text2).Render(r[1])
-		bodyLines = append(bodyLines, key+"  "+desc)
+		col1 := lipgloss.NewStyle().Foreground(lipgloss.Color("#9B87F5")).Width(12).Render(r[0])
+		col2 := lipgloss.NewStyle().Foreground(styles.Text2).Width(22).Render(r[1])
+		col3 := lipgloss.NewStyle().Foreground(styles.Muted2).Width(10).Align(lipgloss.Right).Render(r[2])
+		bodyLines = append(bodyLines, col1+"  "+col2+"  "+col3)
 	}
-	bodyLines = append(bodyLines, "")
-	bodyLines = append(bodyLines, lipgloss.NewStyle().Foreground(styles.Muted2).Render("Atajos:  esc volver  •  ctrl+c salir  •  tab agents  •  ctrl+p commands"))
 	body := strings.Join(bodyLines, "\n")
 	helpBox := lipgloss.NewStyle().
+		Border(lipgloss.HiddenBorder()).
+		Background(lipgloss.Color("#0A0A1A")).
+		Padding(1, 2).
+		Width(min(64, w-8)).
+		Align(lipgloss.Center).
+		Render(header + "\n\n" + body)
+	// Input simulado abajo como en la captura
+	inputSim := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("#2A2A3A")).
 		Background(lipgloss.Color("#14141E")).
-		Padding(1, 2).
-		Width(min(68, w-4)).
-		Render(title + "\n\n" + body)
-	hint := lipgloss.NewStyle().Foreground(styles.Muted2).Render("esc para volver  •  escribe / + tab para autocompletar")
-	inner := lipgloss.JoinVertical(lipgloss.Left, helpBox, "", hint)
+		Padding(0, 1).
+		Width(min(48, w-12)).
+		Render(lipgloss.NewStyle().Foreground(lipgloss.Color("#9B87F5")).Render("┃") + " ")
+	footer := lipgloss.NewStyle().Foreground(styles.Muted2).Render("enter send" + strings.Repeat(" ", max(0, min(48, w-12)-20)) + "Huginn Zen")
+	inner := lipgloss.JoinVertical(lipgloss.Center, helpBox, inputSim, footer)
 	return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, inner)
+}
+
+func renderAsciiHugInnSmall() string {
+	// Versión pequeña del logo para help (2 líneas)
+	cafe := lipgloss.NewStyle().Foreground(lipgloss.Color("#8B5A2B")).Bold(true)
+	blanco := lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF")).Bold(true)
+	return cafe.Render("HUG") + blanco.Render("INN")
 }
 
 func (m Model) viewMessage(w, h int) string {
@@ -798,14 +1001,19 @@ func renderMarkdown(text string, width int) string {
 						p = p[idx+1:]
 					}
 				}
-				codeStyle := lipgloss.NewStyle().
-					Background(lipgloss.Color("#1A1A22")).
-					Foreground(lipgloss.Color("#C9A8FF")).
-					Border(lipgloss.RoundedBorder()).
-					BorderForeground(lipgloss.Color("#2A2A3A")).
-					Padding(0, 1).
-					Width(width)
-				out.WriteString(codeStyle.Render(p))
+				// Detecta diff (líneas +/-) y renderiza con números de línea y colores
+				if strings.Contains(p, "\n+") || strings.Contains(p, "\n-") || strings.HasPrefix(p, "+") || strings.HasPrefix(p, "-") || strings.Contains(p, "diff --git") {
+					out.WriteString(renderDiff(p, width))
+				} else {
+					codeStyle := lipgloss.NewStyle().
+						Background(lipgloss.Color("#1A1A22")).
+						Foreground(lipgloss.Color("#C9A8FF")).
+						Border(lipgloss.RoundedBorder()).
+						BorderForeground(lipgloss.Color("#2A2A3A")).
+						Padding(0, 1).
+						Width(width)
+					out.WriteString(codeStyle.Render(p))
+				}
 			} else {
 				// texto normal con inline `code`
 				out.WriteString(renderInlineCode(p))
@@ -817,6 +1025,52 @@ func renderMarkdown(text string, width int) string {
 		return out.String()
 	}
 	return renderInlineCode(text)
+}
+
+func renderDiff(p string, width int) string {
+	var lines []string
+	addStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#4ADE80")).Background(lipgloss.Color("#0F2A1A"))
+	delStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#F87171")).Background(lipgloss.Color("#2A1111"))
+	ctxStyle := lipgloss.NewStyle().Foreground(styles.Text2)
+	numStyle := lipgloss.NewStyle().Foreground(styles.Muted2)
+	oldNum, newNum := 1, 1
+	for _, ln := range strings.Split(p, "\n") {
+		trimmed := strings.TrimSpace(ln)
+		if strings.HasPrefix(trimmed, "@@") {
+			// Parsea "@@ -old[,count] +new[,count] @@" para numerar como en la captura
+			var o, n int
+			if _, err := fmt.Sscanf(trimmed, "@@ -%d,%*d +%d,%*d @@", &o, &n); err == nil {
+				oldNum, newNum = o, n
+			} else if _, err := fmt.Sscanf(trimmed, "@@ -%d +%d @@", &o, &n); err == nil {
+				oldNum, newNum = o, n
+			}
+			lines = append(lines, numStyle.Render(fmt.Sprintf("   …   %s", trimmed)))
+			continue
+		}
+		if strings.HasPrefix(trimmed, "diff --git") || strings.HasPrefix(trimmed, "---") || strings.HasPrefix(trimmed, "+++") || strings.HasPrefix(trimmed, "index ") {
+			lines = append(lines, numStyle.Render("         "+ln))
+			continue
+		}
+		if strings.HasPrefix(ln, "+") && !strings.HasPrefix(ln, "+++") {
+			lines = append(lines, addStyle.Width(width).Render(fmt.Sprintf("%4d %4d + %s", oldNum, newNum, strings.TrimPrefix(ln, "+"))))
+			newNum++
+			continue
+		}
+		if strings.HasPrefix(ln, "-") && !strings.HasPrefix(ln, "---") {
+			lines = append(lines, delStyle.Width(width).Render(fmt.Sprintf("%4d %4d - %s", oldNum, newNum, strings.TrimPrefix(ln, "-"))))
+			oldNum++
+			continue
+		}
+		lines = append(lines, ctxStyle.Width(width).Render(fmt.Sprintf("%4d %4d   %s", oldNum, newNum, ln)))
+		oldNum++
+		newNum++
+	}
+	return lipgloss.NewStyle().
+		Background(lipgloss.Color("#14141E")).
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#2A2A3A")).
+		Padding(0, 1).
+		Render(strings.Join(lines, "\n"))
 }
 
 func renderInlineCode(s string) string {

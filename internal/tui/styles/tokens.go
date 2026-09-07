@@ -3,39 +3,46 @@ package styles
 
 import "charm.land/lipgloss/v2"
 
-// Paleta bronce/dorado de HUGINN; fuente única de verdad (DESIGN.md §2).
-// El resto reexporta estos tokens sin redefinir hex.
+// Sistema de diseño HUGINN — spec §5 (tui-design-skill).
+// Colores con significado semántico, no decoración. Primero monocromo, luego acento.
 var (
-	// Base — canvas oscuro cálido, paneles con jerarquía real.
-	// Panel es oscuro para que el borde bronce se lea; Panel2 es el inset claro.
-	Bg      = lipgloss.Color("#130E0A")
-	Panel   = lipgloss.Color("#20160E")
-	Panel2  = lipgloss.Color("#2E2013")
-	Border  = lipgloss.Color("#634924")
-	Border2 = lipgloss.Color("#976629")
+	// Base — dark minimal, technical, premium (spec §5)
+	Background   = lipgloss.Color("#0B0F14")
+	Surface      = lipgloss.Color("#111820")
+	SurfaceActive = lipgloss.Color("#161F29")
 
-	// Texto — cream primario, dorado apagado secundario, bronce muted.
-	Text   = lipgloss.Color("#FBE7AE")
-	Text2  = lipgloss.Color("#C9A86C")
-	Muted  = lipgloss.Color("#9D8E69")
-	Muted2 = lipgloss.Color("#7A6950")
+	// Aliases legacy para compatibilidad (mapean al nuevo sistema)
+	Bg     = Background
+	Panel  = Surface
+	Panel2 = SurfaceActive
+	Border = lipgloss.Color("#1E2A36")
+	Border2 = lipgloss.Color("#243447")
 
-	// Acentos: ámbar primario y naranja secundario.
-	Accent  = lipgloss.Color("#E1A451") // amber
-	Accent2 = lipgloss.Color("#CD8D38") // orange
+	// Texto — jerarquía clara, funciona sin color
+	TextPrimary   = lipgloss.Color("#E6EAF0")
+	TextSecondary = lipgloss.Color("#9AA4B2")
+	TextMuted     = lipgloss.Color("#626C78")
+	// Aliases legacy
+	Text   = TextPrimary
+	Text2  = TextSecondary
+	Muted  = TextMuted
+	Muted2 = lipgloss.Color("#4A5563")
 
-	// Semánticos — cálidos pero distinguibles entre sí.
-	// Success es salvia cálida (no ámbar), Error terracota (no rojo plano).
-	Success = lipgloss.Color("#9CAF7A")
-	Warn    = lipgloss.Color("#E1A451")
-	Error   = lipgloss.Color("#C96A4A")
-	Info    = lipgloss.Color("#8AB4B8")
-	Purple  = lipgloss.Color("#CD8D38")
+	// Acento — solo para acciones, estados, selección, identidad HUGINN
+	Accent  = lipgloss.Color("#8B5CF6") // spec §5 — violeta HUGINN
+	Accent2 = lipgloss.Color("#7C3AED") // violeta profundo para hover
+	Purple  = Accent
 
-	// Aliases de compatibilidad para la migración gradual desde main.go.
+	// Semánticos — distinguibles, no arcoíris
+	Success = lipgloss.Color("#4ADE80")
+	Warn    = lipgloss.Color("#FACC15")
+	Error   = lipgloss.Color("#F87171")
+	Info    = lipgloss.Color("#60A5FA")
+
+	// Aliases legacy
 	ColPanel  = Panel
 	ColAccent = Accent
-	ColPurple = Accent2
+	ColPurple = Accent
 )
 
 // PanelStyle — panel principal con borde bronce redondeado.

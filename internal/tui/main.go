@@ -35,10 +35,19 @@ func Main() {
 			{Role: "system", Text: "Chat iniciado. Menciona con @chatgpt @opencode @kilo @mimo @muse @all • o usa Tab/1-6", Meta: "Hugin"},
 			{Role: "user", Text: "analiza este proyecto en detalle y explica la arquitectura hexagonal y el sistema de Vault", Meta: "Tú → Huginn"},
 			{Role: "assistant", Text: "Detectado Go 1.25 + Bubble Tea v2. Proyecto limpio con 4 agentes (ChatGPT, OpenCode, Kilo y Muse). Arquitectura hexagonal: cmd/huginn → cli → application/orchestrator → domain/agent/vault → infrastructure. Vault .huginn con config.json, vault.json, memory.jsonl y user/*.md.", Meta: "ChatGPT"},
+			{Role: "assistant", Text: "Ejemplo de diff:\n```diff\n@@ -64,6 +64,6 @@\n type=\"submit\"\n-variant=\"primary\"\n+variant=\"danger\"\n loading={isLoading}\n```", Meta: "Huginn → Tú"},
 		}
 		m2.input = "explica el vault"
 		fmt.Println("\n=== CHAT ===")
 		fmt.Println(m2.View().Content)
+		// Selector de modelos como en la captura 3
+		m3 := New("huginn-tui", "~/agent-vault")
+		m3.width = 120
+		m3.height = 36
+		m3.mode = ModeModelSelect
+		m3.modelSearch = "codex"
+		fmt.Println("\n=== MODELS ===")
+		fmt.Println(m3.View().Content)
 		os.Exit(0)
 	}
 
